@@ -1,0 +1,25 @@
+# Core (required)
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.3
+pydantic-settings==2.7.0
+sqlmodel==0.0.22
+aiosqlite==0.20.0
+httpx==0.28.1
+python-dotenv==1.0.1
+python-multipart==0.0.18
+cryptography==44.0.0
+
+# Testing
+pytest==8.3.4
+pytest-asyncio==0.24.0
+
+# --- Optional (install separately if needed) ---
+# pip install qdrant-client==1.12.1          # Vector store
+# pip install sentence-transformers==3.3.1   # Local embeddings
+# pip install playwright==1.49.1             # Browser automation
+# pip install docling==2.14.0                # Doc parsing
+# pip install openai==1.58.1                 # OpenAI LLM
+# pip install anthropic==0.40.0              # Anthropic LLM
+# pip install livekit==0.17.1 livekit-agents==0.12.4  # Voice
+# pip install faster-whisper==1.1.0          # Local STT
