@@ -10,10 +10,12 @@ class Workspace(SQLModel, table=True):
     __tablename__ = "workspaces"
 
     id: str = Field(default_factory=lambda: str(uuid.uuid4()), primary_key=True)
+    organization_id: Optional[str] = Field(default=None, foreign_key="organizations.id", index=True)
     name: str = Field(index=True)
     description: Optional[str] = None
     product_url: Optional[str] = None
     allowed_domains: str = Field(default="")  # comma-separated
+    browser_auth_mode: str = Field(default="credentials")  # credentials, none
     public_token: str = Field(default_factory=lambda: uuid.uuid4().hex[:16], unique=True, index=True)
     is_active: bool = Field(default=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -25,14 +27,17 @@ class WorkspaceCreate(SQLModel):
     description: Optional[str] = None
     product_url: Optional[str] = None
     allowed_domains: Optional[str] = None
+    browser_auth_mode: str = "credentials"
 
 
 class WorkspaceRead(SQLModel):
     id: str
+    organization_id: Optional[str]
     name: str
     description: Optional[str]
     product_url: Optional[str]
     allowed_domains: str
+    browser_auth_mode: str
     public_token: str
     is_active: bool
     created_at: datetime

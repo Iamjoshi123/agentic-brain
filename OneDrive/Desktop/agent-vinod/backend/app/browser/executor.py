@@ -2,19 +2,33 @@
 
 import json
 import logging
+from pathlib import Path
 from typing import Optional
 from sqlmodel import Session, select
-from app.browser.driver import PlaywrightDriver, BrowserDriver, ActionResult
+from app.browser.driver import PlaywrightDriver, FakeBrowserDriver, BrowserDriver, ActionResult
+from app.models.admin import ProductSessionSettings, SessionRecording
 from app.models.session import BrowserAction, DemoSession
 from app.models.credential import SandboxCredential, SandboxLock
 from app.models.recipe import DemoRecipe
+from app.models.workspace import Workspace
 from app.services.encryption import decrypt
 from app.config import settings
+from app.policies.engine import evaluate_policy
 
 logger = logging.getLogger(__name__)
 
 # In-memory registry of active browser sessions
 _active_sessions: dict[str, BrowserDriver] = {}
+
+
+def _create_driver() -> BrowserDriver:
+    if settings.app_env == "test":
+        return FakeBrowserDriver()
+    return PlaywrightDriver()
+
+
+def get_active_driver(session_id: str) -> Optional[BrowserDriver]:
+    return _active_sessions.get(session_id)
 
 
 async def start_browser_session(
@@ -25,16 +39,22 @@ async def start_browser_session(
 
     Returns the credential_id if successful, None on failure.
     """
-    # Find an available credential
-    credential = _acquire_credential(db, session)
-    if not credential:
-        logger.warning(f"No available credentials for workspace {session.workspace_id}")
-        return None
+    workspace = db.get(Workspace, session.workspace_id)
+    auth_mode = workspace.browser_auth_mode if workspace else "credentials"
+    credential = None
+    if auth_mode != "none":
+        credential = _acquire_credential(db, session)
+        if not credential:
+            logger.info(
+                "No available credentials for workspace %s; continuing in read-only mode",
+                session.workspace_id,
+            )
 
     # Start browser
-    driver = PlaywrightDriver()
+    driver = _create_driver()
+    recording_dir = _recording_dir_for_workspace(db, session.workspace_id)
     try:
-        await driver.start(headless=settings.playwright_headless)
+        await driver.start(headless=settings.playwright_headless, record_video_dir=recording_dir)
     except Exception as e:
         logger.error(f"Failed to start browser: {e}")
         _release_credential(db, session.id)
@@ -42,20 +62,36 @@ async def start_browser_session(
 
     _active_sessions[session.id] = driver
 
-    # Login
-    login_result = await _login(driver, credential)
-    if not login_result.success:
-        logger.error(f"Login failed: {login_result.error}")
-        # Still keep browser open - admin might want to debug
+    session.credential_id = None
+    if credential is not None:
+        login_result = await _login(driver, credential)
         _log_action(db, session.id, login_result)
+        if not login_result.success:
+            logger.error(f"Login failed: {login_result.error}")
+        else:
+            session.credential_id = credential.id
 
-    _log_action(db, session.id, login_result)
-    session.credential_id = credential.id
+    bootstrap_target = workspace.product_url if workspace and workspace.product_url else None
+    if bootstrap_target:
+        should_bootstrap = credential is None or credential.login_url.rstrip("/") != bootstrap_target.rstrip("/")
+        if should_bootstrap:
+            bootstrap_result = await driver.navigate(bootstrap_target)
+            _log_action(db, session.id, bootstrap_result)
+            if not bootstrap_result.success:
+                logger.error(f"Bootstrap navigation failed: {bootstrap_result.error}")
+                await close_browser_session(db, session.id)
+                return None
+
+    if credential is None:
+        session.credential_id = None
+    else:
+        session.credential_id = credential.id
+
     session.browser_session_id = session.id
     db.add(session)
     db.commit()
 
-    return credential.id
+    return credential.id if credential else "no-auth"
 
 
 async def execute_recipe(
@@ -77,22 +113,8 @@ async def execute_recipe(
 
     results = []
     for step in steps:
-        action = step.get("action", "")
-        target = step.get("target", "")
-        value = step.get("value", "")
-        wait_ms = step.get("wait_ms", 1000)
-
-        result = await _execute_step(driver, action, target, value)
-        result.narration = step.get("description", result.narration)
-        _log_action(db, session_id, result)
+        result = await execute_recipe_step(db, session_id, step)
         results.append(result)
-
-        if not result.success:
-            logger.warning(f"Recipe step failed: {action} {target} - {result.error}")
-            # Continue with remaining steps rather than aborting
-
-        if wait_ms > 0:
-            await driver.wait(wait_ms)
 
     return results
 
@@ -109,8 +131,71 @@ async def execute_action(
     if not driver:
         return ActionResult(success=False, action_type=action, error="No active browser session")
 
+    blocked = _enforce_action_policy(db, session_id, action, target)
+    if blocked is not None:
+        _log_action(db, session_id, blocked)
+        return blocked
+
+    before_state = await driver.get_page_state()
     result = await _execute_step(driver, action, target, value)
+    if result.success:
+        after_state = await driver.get_page_state()
+        from app.runtime_v3.pipeline import build_verified_narration
+
+        result.narration = build_verified_narration(
+            action_type=action,
+            target=target,
+            before_state=before_state,
+            after_state=after_state,
+            fallback_narration=result.narration,
+        )
     _log_action(db, session_id, result)
+    return result
+
+
+async def execute_recipe_step(
+    db: Session,
+    session_id: str,
+    step: dict,
+) -> ActionResult:
+    driver = _active_sessions.get(session_id)
+    if not driver:
+        return ActionResult(success=False, action_type=step.get("action", ""), error="No active browser session")
+
+    action = step.get("action", "")
+    target = step.get("target", "")
+    value = step.get("value", "")
+    wait_ms = step.get("wait_ms", 1000)
+
+    blocked = _enforce_action_policy(db, session_id, action, target)
+    if blocked is not None:
+        blocked.narration = step.get("description", blocked.narration)
+        _log_action(db, session_id, blocked)
+        return blocked
+
+    before_state = await driver.get_page_state()
+    result = await _execute_step(driver, action, target, value)
+    if result.success:
+        after_state = await driver.get_page_state()
+        from app.runtime_v3.pipeline import build_verified_narration
+
+        result.narration = build_verified_narration(
+            action_type=action,
+            target=target,
+            before_state=before_state,
+            after_state=after_state,
+            fallback_narration=step.get("description") or result.narration,
+        )
+    else:
+        result.narration = step.get("description", result.narration)
+    _log_action(db, session_id, result)
+
+    if not result.success:
+        logger.warning(f"Recipe step failed: {action} {target} - {result.error}")
+
+    if wait_ms > 0:
+        await driver.wait(wait_ms)
+
     return result
 
 
@@ -122,6 +207,14 @@ async def get_browser_state(session_id: str) -> Optional[dict]:
     return await driver.get_page_state()
 
 
+async def observe_action_candidates(session_id: str, instruction: str) -> list[dict]:
+    """Return Stagehand-observed visible action candidates for the current page."""
+    driver = _active_sessions.get(session_id)
+    if not driver:
+        return []
+    return await driver.ai_observe(instruction)
+
+
 async def take_screenshot(session_id: str) -> Optional[str]:
     """Take a screenshot and return base64."""
     driver = _active_sessions.get(session_id)
@@ -131,13 +224,17 @@ async def take_screenshot(session_id: str) -> Optional[str]:
     return result.screenshot_b64 if result.success else None
 
 
-async def close_browser_session(db: Session, session_id: str) -> None:
+async def close_browser_session(db: Session, session_id: str) -> Optional[str]:
     """Close browser and release credential lock."""
     driver = _active_sessions.pop(session_id, None)
+    recording_path: Optional[str] = None
     if driver:
         await driver.close()
+        recording_path = await driver.get_recording_artifact()
+    _persist_recording(db, session_id, recording_path)
     _release_credential(db, session_id)
     logger.info(f"Browser session closed for {session_id}")
+    return recording_path
 
 
 def _acquire_credential(db: Session, session: DemoSession) -> Optional[SandboxCredential]:
@@ -146,7 +243,7 @@ def _acquire_credential(db: Session, session: DemoSession) -> Optional[SandboxCr
     credentials = db.exec(
         select(SandboxCredential).where(
             SandboxCredential.workspace_id == session.workspace_id,
-            SandboxCredential.is_active == True,
+            SandboxCredential.is_active,
         )
     ).all()
 
@@ -155,7 +252,7 @@ def _acquire_credential(db: Session, session: DemoSession) -> Optional[SandboxCr
         active_lock = db.exec(
             select(SandboxLock).where(
                 SandboxLock.credential_id == cred.id,
-                SandboxLock.is_active == True,
+                SandboxLock.is_active,
             )
         ).first()
 
@@ -180,7 +277,7 @@ def _release_credential(db: Session, session_id: str) -> None:
     locks = db.exec(
         select(SandboxLock).where(
             SandboxLock.session_id == session_id,
-            SandboxLock.is_active == True,
+            SandboxLock.is_active,
         )
     ).all()
     for lock in locks:
@@ -188,6 +285,36 @@ def _release_credential(db: Session, session_id: str) -> None:
         lock.released_at = datetime.now(timezone.utc)
         db.add(lock)
     db.commit()
+
+
+def _enforce_action_policy(
+    db: Session,
+    session_id: str,
+    action: str,
+    target: Optional[str],
+) -> Optional[ActionResult]:
+    """Reject browser actions that violate workspace policies."""
+    session = db.get(DemoSession, session_id)
+    if not session:
+        return ActionResult(success=False, action_type=action, target=target, error="Session not found")
+
+    decision = evaluate_policy(
+        db=db,
+        workspace_id=session.workspace_id,
+        user_message=target if action == "ai_act" else "",
+        proposed_action=f"{action} {target or ''}".strip(),
+        target_url=target if action == "navigate" else None,
+    )
+    if decision.allowed or decision.decision == "warn":
+        return None
+
+    return ActionResult(
+        success=False,
+        action_type=action,
+        target=target,
+        error=decision.reason or f"Blocked by policy: {decision.decision}",
+        narration=f"Blocked by policy: {decision.decision}",
+    )
 
 
 async def _login(driver: BrowserDriver, credential: SandboxCredential) -> ActionResult:
@@ -273,6 +400,14 @@ async def _execute_step(
         return await driver.wait(int(value or 1000))
     elif action == "scroll":
         return await driver.scroll(value or "down")
+    elif action == "wait_for_url" and target:
+        return await driver.wait_for_url(target, int(value or 15000))
+    elif action == "wait_for_text" and target:
+        return await driver.wait_for_text(target, int(value or 15000))
+    elif action == "wait_for_selector" and target:
+        return await driver.wait_for_selector(target, int(value or 15000))
+    elif action == "ai_act" and target:
+        return await driver.ai_act(target)
     elif action == "narrate":
         return ActionResult(
             success=True,
@@ -301,4 +436,30 @@ def _log_action(db: Session, session_id: str, result: ActionResult) -> None:
         duration_ms=result.duration_ms,
     )
     db.add(action)
+    db.commit()
+
+
+def _recording_dir_for_workspace(db: Session, workspace_id: str) -> Optional[str]:
+    session_settings = db.exec(
+        select(ProductSessionSettings).where(ProductSessionSettings.workspace_id == workspace_id)
+    ).first()
+    if session_settings is None or not session_settings.recording_enabled:
+        return None
+    root = Path(settings.admin_upload_dir) / "recordings" / workspace_id
+    root.mkdir(parents=True, exist_ok=True)
+    return str(root)
+
+
+def _persist_recording(db: Session, session_id: str, recording_path: Optional[str]) -> None:
+    session = db.get(DemoSession, session_id)
+    if session is None:
+        return
+    existing = db.exec(select(SessionRecording).where(SessionRecording.session_id == session_id)).first()
+    if existing is None:
+        existing = SessionRecording(session_id=session_id, workspace_id=session.workspace_id)
+    existing.video_path = recording_path
+    existing.status = "ready" if recording_path else "skipped"
+    if session.started_at and session.ended_at:
+        existing.duration_seconds = int((session.ended_at - session.started_at).total_seconds())
+    db.add(existing)
     db.commit()

@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
+
 import { api } from "@/lib/api";
-import type { AgentStatus } from "@/types/api";
+import type { AgentStatus, DemoSession, LiveStartResponse, SessionMessage } from "@/types/api";
 
 const STATUS_LABELS: Record<AgentStatus, string> = {
   idle: "Ready",
@@ -15,42 +16,249 @@ const STATUS_LABELS: Record<AgentStatus, string> = {
   error: "Something went wrong",
 };
 
-export default function DemoPage() {
-  const params = useParams();
-  const token = params.token as string;
+function normalizeSession(session: any): DemoSession {
+  return {
+    ...session,
+    live_status: session.live_status ?? "idle",
+    active_recipe_id: session.active_recipe_id ?? null,
+    current_step_index: session.current_step_index ?? 0,
+    live_room_name: session.live_room_name ?? null,
+  };
+}
 
-  const [session, setSession] = useState<any>(null);
-  const [messages, setMessages] = useState<any[]>([]);
+export default function DemoPage() {
+  const params = useParams<{ token: string }>();
+  const token = params?.token ?? "";
+
+  const [session, setSession] = useState<DemoSession | null>(null);
+  const [messages, setMessages] = useState<SessionMessage[]>([]);
   const [input, setInput] = useState("");
   const [status, setStatus] = useState<AgentStatus>("idle");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
-  const [browserActive, setBrowserActive] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [liveInfo, setLiveInfo] = useState<LiveStartResponse | null>(null);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [summaryNote, setSummaryNote] = useState<string | null>(null);
   const [showIntro, setShowIntro] = useState(true);
   const [buyerName, setBuyerName] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
+  const [browserTrackReady, setBrowserTrackReady] = useState(false);
+  const [audioReady, setAudioReady] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const browserContainerRef = useRef<HTMLDivElement>(null);
+  const audioContainerRef = useRef<HTMLDivElement>(null);
+  const roomRef = useRef<any>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const closingLiveRef = useRef(false);
+
+  const isEnded = session?.status === "ended";
+  const liveStatus = session?.live_status ?? "idle";
+  const liveActive = Boolean(liveInfo);
+  const liveStatusLabel = useMemo(() => {
+    if (!liveActive) return null;
+    if (liveStatus === "starting") return "Connecting live session...";
+    if (liveStatus === "paused") return "Live demo paused";
+    if (liveStatus === "error") return "Live demo error";
+    if (liveStatus === "ended") return "Live demo ended";
+    return browserTrackReady ? "Watching the live product session" : "Waiting for live product video...";
+  }, [browserTrackReady, liveActive, liveStatus]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  useEffect(() => {
+    return () => {
+      void disconnectLiveSession();
+    };
+  }, []);
+
+  async function disconnectLiveSession() {
+    closingLiveRef.current = true;
+    wsRef.current?.close();
+    wsRef.current = null;
+
+    if (roomRef.current) {
+      await roomRef.current.disconnect();
+      roomRef.current = null;
+    }
+
+    if (browserContainerRef.current) {
+      browserContainerRef.current.innerHTML = "";
+    }
+    if (audioContainerRef.current) {
+      audioContainerRef.current.innerHTML = "";
+    }
+
+    setBrowserTrackReady(false);
+    setAudioReady(false);
+    setLiveInfo(null);
+  }
+
+  function appendMessage(message: SessionMessage) {
+    setMessages((prev) => {
+      const exists = prev.some(
+        (item) =>
+          item.role === message.role &&
+          item.content === message.content &&
+          item.message_type === message.message_type,
+      );
+      if (exists) return prev;
+      return [...prev, message];
+    });
+  }
+
+  function appendSystemMessage(content: string) {
+    appendMessage({
+      id: `system-${Date.now()}`,
+      session_id: session?.id ?? "unknown",
+      role: "system",
+      content,
+      message_type: "text",
+      planner_decision: null,
+      created_at: new Date().toISOString(),
+    });
+  }
+
+  function handleLiveEvent(event: any) {
+    if (event.type === "connected") {
+      return;
+    }
+
+    if (event.type === "status") {
+      setSession((prev) => (prev ? { ...prev, live_status: event.live_status ?? prev.live_status, current_step_index: event.current_step_index ?? prev.current_step_index } : prev));
+      if (event.live_status === "paused") {
+        setStatus("idle");
+      }
+      if (event.live_status === "error") {
+        setStatus("error");
+      }
+      return;
+    }
+
+    if (event.type === "transcript") {
+      appendMessage({
+        id: `${event.role}-${event.timestamp}`,
+        session_id: session?.id ?? "unknown",
+        role: event.role,
+        content: event.content,
+        message_type: event.message_type ?? "text",
+        planner_decision: event.planner_decision ?? null,
+        created_at: event.timestamp,
+      });
+      return;
+    }
+
+    if (event.type === "recipe_started") {
+      setStatus("showing_feature");
+      appendSystemMessage(`Starting demo flow: ${event.recipe_name}`);
+      return;
+    }
+
+    if (event.type === "recipe_step") {
+      setSession((prev) => (prev ? { ...prev, current_step_index: event.step_index ?? prev.current_step_index } : prev));
+      setStatus(event.success ? "showing_feature" : "error");
+      if (event.narration) {
+        appendSystemMessage(event.narration);
+      }
+      return;
+    }
+
+    if (event.type === "recipe_completed") {
+      setStatus("idle");
+      appendSystemMessage(`Completed demo flow: ${event.recipe_name}`);
+      return;
+    }
+
+    if (event.type === "runtime_error") {
+      setStatus("error");
+      setLiveError(event.detail || "Live demo error");
+      appendSystemMessage(event.detail || "Live demo encountered an error.");
+      return;
+    }
+
+    if (event.type === "session_ended") {
+      setStatus("idle");
+      setSession((prev) => (prev ? { ...prev, status: "ended", live_status: "ended" } : prev));
+      if (event.summary_text) {
+        setSummaryNote(event.summary_text);
+      }
+    }
+  }
+
+  async function connectRoom(live: LiveStartResponse) {
+    const livekit = await import("livekit-client");
+    const room = new livekit.Room();
+    roomRef.current = room;
+
+    room.on(livekit.RoomEvent.TrackSubscribed, (track: any, publication: any) => {
+      const element = track.attach();
+      element.className = "h-full w-full";
+
+      if (publication.trackName === "browser-video") {
+        if (browserContainerRef.current) {
+          browserContainerRef.current.innerHTML = "";
+          browserContainerRef.current.appendChild(element);
+        }
+        setBrowserTrackReady(true);
+        return;
+      }
+
+      if (publication.trackName === "agent-audio") {
+        if (audioContainerRef.current) {
+          audioContainerRef.current.innerHTML = "";
+          audioContainerRef.current.appendChild(element);
+        }
+        setAudioReady(true);
+      }
+    });
+
+    room.on(livekit.RoomEvent.TrackUnsubscribed, (track: any) => {
+      track.detach().forEach((element: HTMLElement) => element.remove());
+    });
+
+    await room.connect(live.livekit_url!, live.participant_token!);
+
+    try {
+      await room.localParticipant.setMicrophoneEnabled(true);
+    } catch {
+      appendSystemMessage("Microphone access was denied. Text chat is still available.");
+    }
+  }
+
+  function connectEvents(live: LiveStartResponse) {
+    if (!live.event_ws_url) return;
+    const socket = new WebSocket(live.event_ws_url);
+    socket.onmessage = (event) => {
+      try {
+        handleLiveEvent(JSON.parse(event.data));
+      } catch {
+        // Ignore malformed events.
+      }
+    };
+    socket.onclose = () => {
+      if (!closingLiveRef.current) {
+        setLiveError("Live event connection closed.");
+      }
+    };
+    wsRef.current = socket;
+  }
+
   async function startSession() {
     try {
-      const s = await api.createSession({
-        public_token: token,
-        buyer_name: buyerName || undefined,
-        buyer_email: buyerEmail || undefined,
-        mode: "text",
-      });
-      setSession(s);
+      const created = normalizeSession(
+        await api.createSession({
+          public_token: token,
+          buyer_name: buyerName || undefined,
+          buyer_email: buyerEmail || undefined,
+          mode: "text",
+        }),
+      );
+      setSession(created);
       setShowIntro(false);
-
-      // Load welcome message
-      const msgs = await api.getMessages(s.id);
-      setMessages(msgs);
+      setSummaryNote(null);
+      setLiveError(null);
+      setMessages(await api.getMessages(created.id));
     } catch (e: any) {
-      setError(e.message || "Failed to start session. Check that the demo link is valid.");
+      setLiveError(e.message || "Failed to start session. Check that the demo link is valid.");
     }
   }
 
@@ -60,71 +268,109 @@ export default function DemoPage() {
 
     const userMsg = input.trim();
     setInput("");
-
-    // Optimistic update
-    setMessages((prev) => [
-      ...prev,
-      { id: "temp-" + Date.now(), role: "user", content: userMsg, message_type: "text", created_at: new Date().toISOString() },
-    ]);
-
+    appendMessage({
+      id: `temp-${Date.now()}`,
+      session_id: session.id,
+      role: "user",
+      content: userMsg,
+      message_type: "text",
+      planner_decision: null,
+      created_at: new Date().toISOString(),
+    });
     setStatus("thinking");
 
     try {
       const agentMsg = await api.sendMessage(session.id, userMsg);
-
-      // Replace optimistic and add agent reply
       setMessages((prev) => {
         const filtered = prev.filter((m) => !m.id.startsWith("temp-"));
-        return [...filtered, { id: "user-" + Date.now(), role: "user", content: userMsg, message_type: "text", created_at: new Date().toISOString() }, agentMsg];
+        return [
+          ...filtered,
+          {
+            id: `user-${Date.now()}`,
+            session_id: session.id,
+            role: "user",
+            content: userMsg,
+            message_type: "text",
+            planner_decision: null,
+            created_at: new Date().toISOString(),
+          },
+          agentMsg,
+        ];
       });
 
-      // Check if there's a demo action
-      if (agentMsg.planner_decision === "answer_and_demo" && browserActive) {
+      if (agentMsg.planner_decision === "answer_and_demo" && liveActive) {
         setStatus("showing_feature");
-        // Poll for new screenshot
-        try {
-          const ss = await api.getScreenshot(session.id);
-          setScreenshot(ss.screenshot);
-        } catch {
-          // No screenshot available
-        }
-      } else if (agentMsg.planner_decision === "escalate") {
+        return;
+      }
+      if (agentMsg.planner_decision === "escalate") {
         setStatus("escalated");
         setTimeout(() => setStatus("idle"), 3000);
         return;
       }
-
       setStatus("idle");
     } catch (e: any) {
       setStatus("error");
-      setMessages((prev) => [
-        ...prev,
-        { id: "error-" + Date.now(), role: "system", content: "Failed to get response. Please try again.", message_type: "text", created_at: new Date().toISOString() },
-      ]);
+      appendSystemMessage(e.message || "Failed to get response. Please try again.");
       setTimeout(() => setStatus("idle"), 2000);
     }
   }
 
-  async function handleStartBrowser() {
+  async function handleStartLiveDemo() {
     if (!session) return;
     setStatus("navigating");
+    setLiveError(null);
+    closingLiveRef.current = false;
+
     try {
-      await api.startBrowser(session.id);
-      setBrowserActive(true);
-      // Get initial screenshot
-      try {
-        const ss = await api.getScreenshot(session.id);
-        setScreenshot(ss.screenshot);
-      } catch {
-        // Browser started but no screenshot yet
+      const live = await api.startLive(session.id);
+      const capabilities = JSON.parse(live.capabilities_json || "{}");
+      setLiveInfo(live);
+      setSession((prev) => (prev ? { ...prev, mode: "live", live_status: "live", live_room_name: live.room_name } : prev));
+
+      if (!capabilities.mock_media && live.livekit_url && live.participant_token) {
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+        await connectRoom(live);
+      } else {
+        setBrowserTrackReady(true);
+        setAudioReady(Boolean(capabilities.voice));
       }
+      connectEvents(live);
       setStatus("idle");
     } catch (e: any) {
-      setMessages((prev) => [
-        ...prev,
-        { id: "sys-" + Date.now(), role: "system", content: `Browser: ${e.message || "Could not start browser session."}`, message_type: "text", created_at: new Date().toISOString() },
-      ]);
-      setStatus("idle");
+      setStatus("error");
+      setLiveError(e.message || "Could not start the live demo.");
+      appendSystemMessage(`Live demo: ${e.message || "Could not start the live browser session."}`);
+      setTimeout(() => setStatus("idle"), 2000);
+    }
+  }
+
+  async function handleControl(action: "pause" | "resume" | "next-step" | "restart") {
+    if (!session) return;
+    try {
+      const response =
+        action === "pause"
+          ? await api.pauseLive(session.id)
+          : action === "resume"
+          ? await api.resumeLive(session.id)
+          : action === "next-step"
+          ? await api.nextLiveStep(session.id)
+          : await api.restartLive(session.id);
+
+      setSession((prev) =>
+        prev
+          ? {
+              ...prev,
+              live_status: response.live_status,
+              active_recipe_id: response.active_recipe_id,
+              current_step_index: response.current_step_index,
+            }
+          : prev,
+      );
+      if (response.detail) {
+        appendSystemMessage(response.detail);
+      }
+    } catch (e: any) {
+      setLiveError(e.message || "Could not send live control.");
     }
   }
 
@@ -132,28 +378,25 @@ export default function DemoPage() {
     if (!session) return;
     try {
       const result = await api.endSession(session.id);
-      setMessages((prev) => [
-        ...prev,
-        { id: "end", role: "system", content: `Session ended. Lead intent score: ${result.summary?.lead_intent_score || "N/A"}`, message_type: "text", created_at: new Date().toISOString() },
-      ]);
-      setSession({ ...session, status: "ended" });
-      setBrowserActive(false);
-    } catch (e) {
-      console.error("Failed to end session:", e);
+      setSummaryNote(result.summary?.summary_text || null);
+      appendSystemMessage(`Session ended. Lead intent score: ${result.summary?.lead_intent_score || "N/A"}`);
+      setSession({ ...session, status: "ended", live_status: "ended" });
+      await disconnectLiveSession();
+    } catch (e: any) {
+      setLiveError(e.message || "Failed to end the session.");
     }
   }
 
-  // Intro screen
   if (showIntro) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 to-blue-100 flex items-center justify-center">
         <div className="card max-w-md w-full mx-4">
           <h1 className="text-2xl font-bold text-center mb-2">Product Demo</h1>
           <p className="text-gray-500 text-center mb-6 text-sm">
-            Chat with our AI assistant to explore the product. You can ask questions and watch live walkthroughs.
+            Chat with the agent, then switch into the live product session when you want a real walkthrough.
           </p>
-          {error && (
-            <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{error}</div>
+          {liveError && (
+            <div className="bg-red-50 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm">{liveError}</div>
           )}
           <div className="space-y-3">
             <input
@@ -177,11 +420,8 @@ export default function DemoPage() {
     );
   }
 
-  const isEnded = session?.status === "ended";
-
   return (
     <div className="min-h-screen bg-gray-100 flex flex-col">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
         <div>
           <h1 className="font-bold text-gray-900">Live Demo</h1>
@@ -192,11 +432,17 @@ export default function DemoPage() {
                 {STATUS_LABELS[status]}
               </span>
             )}
+            {status === "idle" && liveStatusLabel && (
+              <span className="inline-flex items-center gap-1">
+                <span className={`w-2 h-2 rounded-full ${browserTrackReady ? "bg-green-500" : "bg-yellow-500"}`} />
+                {liveStatusLabel}
+              </span>
+            )}
           </p>
         </div>
         <div className="flex gap-2">
-          {!browserActive && !isEnded && (
-            <button onClick={handleStartBrowser} className="btn-secondary text-sm">
+          {!liveActive && !isEnded && (
+            <button onClick={handleStartLiveDemo} className="btn-secondary text-sm">
               Start Live Demo
             </button>
           )}
@@ -208,25 +454,24 @@ export default function DemoPage() {
         </div>
       </header>
 
-      {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Chat Panel */}
-        <div className={`flex flex-col ${browserActive ? "w-1/2" : "w-full max-w-3xl mx-auto"}`}>
-          {/* Messages */}
+        <div className={`flex flex-col ${liveActive ? "w-5/12" : "w-full max-w-3xl mx-auto"}`}>
           <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
             {messages.map((msg) => (
               <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
-                  msg.role === "user"
-                    ? "bg-primary-600 text-white rounded-br-md"
-                    : msg.role === "system"
-                    ? "bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-bl-md"
-                    : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md"
-                }`}>
+                <div
+                  className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm leading-relaxed ${
+                    msg.role === "user"
+                      ? "bg-primary-600 text-white rounded-br-md"
+                      : msg.role === "system"
+                      ? "bg-yellow-50 text-yellow-800 border border-yellow-200 rounded-bl-md"
+                      : "bg-white text-gray-800 shadow-sm border border-gray-100 rounded-bl-md"
+                  }`}
+                >
                   {msg.role === "agent" && msg.planner_decision && (
                     <span className="text-xs text-gray-400 block mb-1">
                       {msg.planner_decision === "answer_and_demo" && "Answering + showing demo"}
-                      {msg.planner_decision === "answer_only" && "From documentation"}
+                      {msg.planner_decision === "answer_only" && "From docs or live product"}
                       {msg.planner_decision === "escalate" && "Escalated to sales team"}
                       {msg.planner_decision === "refuse" && "Not available in demo"}
                       {msg.planner_decision === "clarify" && "Needs clarification"}
@@ -236,10 +481,14 @@ export default function DemoPage() {
                 </div>
               </div>
             ))}
+            {summaryNote && (
+              <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+                {summaryNote}
+              </div>
+            )}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input */}
           {!isEnded && (
             <form onSubmit={sendMessage} className="border-t border-gray-200 bg-white p-4">
               <div className="flex gap-2">
@@ -259,12 +508,16 @@ export default function DemoPage() {
                   Send
                 </button>
               </div>
-              <div className="flex gap-3 mt-2">
-                {["Show me the dashboard", "How do I create a contact?", "What reports are available?"].map((q) => (
+              <div className="flex gap-3 mt-2 flex-wrap">
+                {[
+                  "Show me the sequence dashboard",
+                  "Walk me through analytics reports",
+                  "Can I get annual discount pricing?",
+                ].map((q) => (
                   <button
                     key={q}
                     type="button"
-                    onClick={() => { setInput(q); }}
+                    onClick={() => setInput(q)}
                     className="text-xs text-primary-600 hover:underline"
                   >
                     {q}
@@ -275,42 +528,55 @@ export default function DemoPage() {
           )}
         </div>
 
-        {/* Browser Viewport */}
-        {browserActive && (
-          <div className="w-1/2 border-l border-gray-200 bg-gray-900 flex flex-col">
-            <div className="bg-gray-800 px-4 py-2 flex items-center gap-2">
-              <div className="flex gap-1.5">
-                <span className="w-3 h-3 rounded-full bg-red-500" />
-                <span className="w-3 h-3 rounded-full bg-yellow-500" />
-                <span className="w-3 h-3 rounded-full bg-green-500" />
+        {liveActive && (
+          <div className="w-7/12 border-l border-gray-200 bg-gray-950 flex flex-col">
+            <div className="bg-gray-900 px-4 py-3 flex flex-wrap items-center gap-2 text-xs text-gray-300">
+              <span className="font-semibold text-white">Live Product Session</span>
+              <span className="rounded-full border border-gray-700 px-2 py-1">
+                {browserTrackReady ? "Video connected" : "Waiting for browser video"}
+              </span>
+              <span className="rounded-full border border-gray-700 px-2 py-1">
+                {audioReady ? "Agent audio live" : "Audio pending"}
+              </span>
+              <span className="rounded-full border border-gray-700 px-2 py-1">
+                Step {session?.current_step_index ?? 0}
+              </span>
+              <div className="ml-auto flex gap-2">
+                <button onClick={() => handleControl("pause")} className="btn-secondary text-xs">
+                  Pause
+                </button>
+                <button onClick={() => handleControl("resume")} className="btn-secondary text-xs">
+                  Resume
+                </button>
+                <button onClick={() => handleControl("next-step")} className="btn-secondary text-xs">
+                  Next Step
+                </button>
+                <button onClick={() => handleControl("restart")} className="btn-secondary text-xs">
+                  Restart Demo
+                </button>
               </div>
-              <span className="text-xs text-gray-400 ml-2">Live Browser View</span>
-              <button
-                onClick={async () => {
-                  try {
-                    const ss = await api.getScreenshot(session.id);
-                    setScreenshot(ss.screenshot);
-                  } catch {}
-                }}
-                className="ml-auto text-xs text-gray-400 hover:text-white"
-              >
-                Refresh
-              </button>
             </div>
-            <div className="flex-1 flex items-center justify-center p-2 overflow-hidden">
-              {screenshot ? (
-                <img
-                  src={`data:image/jpeg;base64,${screenshot}`}
-                  alt="Browser view"
-                  className="max-w-full max-h-full object-contain rounded"
-                />
-              ) : (
-                <div className="text-gray-500 text-center">
-                  <p className="text-lg mb-2">Browser view</p>
-                  <p className="text-sm">Ask a question to see a live walkthrough</p>
+            <div className="relative flex-1 overflow-hidden">
+              <div
+                ref={browserContainerRef}
+                data-testid="browser-track-container"
+                className="h-full w-full [&>video]:h-full [&>video]:w-full [&>video]:object-contain"
+              />
+              {!browserTrackReady && (
+                <div className="absolute inset-0 flex items-center justify-center text-center text-gray-400">
+                  <div>
+                    <p className="text-lg mb-2">Connecting to the real product session</p>
+                    <p className="text-sm">The agent is preparing the live browser and joining the room.</p>
+                  </div>
                 </div>
               )}
             </div>
+            <div ref={audioContainerRef} data-testid="audio-track-container" className="hidden" />
+            {liveError && (
+              <div className="border-t border-red-900 bg-red-950/60 px-4 py-3 text-sm text-red-200">
+                {liveError}
+              </div>
+            )}
           </div>
         )}
       </div>

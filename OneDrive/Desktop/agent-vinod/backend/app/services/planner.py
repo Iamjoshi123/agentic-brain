@@ -8,13 +8,14 @@ Decisions:
 - refuse: block the action (destructive, out of scope)
 """
 
-import json
 import logging
 from typing import Optional
 from dataclasses import dataclass
 from sqlmodel import Session, select
+from app.models.admin import ProductConfig
 from app.models.recipe import DemoRecipe
 from app.models.session import DemoSession
+from app.browser.executor import get_browser_state
 from app.retrieval.vector_store import search as vector_search
 from app.policies.engine import evaluate_policy, PolicyDecision
 from app.services.llm import generate
@@ -51,6 +52,9 @@ async def plan_response(
     5. Generate response
     """
     workspace_id = session.workspace_id
+    product_config = db.exec(
+        select(ProductConfig).where(ProductConfig.workspace_id == workspace_id)
+    ).first()
 
     # Step 1: Policy check
     policy = evaluate_policy(db, workspace_id, user_message)
@@ -74,6 +78,24 @@ async def plan_response(
     retrieval_results = vector_search(user_message, workspace_id, top_k=5)
     context_text = "\n---\n".join([r["content"] for r in retrieval_results]) if retrieval_results else ""
     citations = [r.get("document_id", "") for r in retrieval_results if r.get("document_id")]
+    browser_state = await get_browser_state(session.id) if session.browser_session_id else None
+    live_page_context = ""
+    if browser_state:
+        visible_text = (browser_state.get("visible_text") or "")[:1200]
+        stagehand_summary = browser_state.get("stagehand_summary") or ""
+        stagehand_module = browser_state.get("stagehand_active_module") or ""
+        stagehand_actions = browser_state.get("stagehand_primary_actions") or []
+        live_page_context = (
+            f"Live product page title: {browser_state.get('title') or 'Unknown'}\n"
+            f"Live product URL: {browser_state.get('url') or ''}\n"
+            f"Visible page text:\n{visible_text}"
+        )
+        if stagehand_summary:
+            live_page_context += f"\nStagehand screen summary: {stagehand_summary}"
+        if stagehand_module:
+            live_page_context += f"\nActive module: {stagehand_module}"
+        if stagehand_actions:
+            live_page_context += f"\nPrimary visible actions: {', '.join(stagehand_actions[:6])}"
 
     # Step 4: Decide action type
     decision = await _decide_action(user_message, context_text, recipe is not None)
@@ -82,15 +104,17 @@ async def plan_response(
     response = await _generate_response(
         user_message=user_message,
         context=context_text,
+        live_page_context=live_page_context,
         decision=decision,
         recipe_name=recipe.name if recipe else None,
+        product_config=product_config,
     )
 
     return PlanResult(
         decision=decision,
         response_text=response,
         recipe_id=recipe.id if recipe else None,
-        retrieval_context=context_text[:500] if context_text else None,
+        retrieval_context=(context_text or live_page_context)[:500] if (context_text or live_page_context) else None,
         policy_decision=policy,
         citations=citations,
     )
@@ -101,7 +125,7 @@ def _match_recipe(db: Session, workspace_id: str, user_message: str) -> Optional
     recipes = db.exec(
         select(DemoRecipe).where(
             DemoRecipe.workspace_id == workspace_id,
-            DemoRecipe.is_active == True,
+            DemoRecipe.is_active,
         ).order_by(DemoRecipe.priority.desc())
     ).all()
 
@@ -161,18 +185,27 @@ async def _decide_action(user_message: str, context: str, has_recipe: bool) -> s
 async def _generate_response(
     user_message: str,
     context: str,
-    decision: str,
+    live_page_context: str = "",
+    decision: str = "answer_only",
     recipe_name: Optional[str] = None,
+    product_config: Optional[ProductConfig] = None,
 ) -> str:
     """Generate the agent's spoken/text response."""
-    system = """You are a product demo assistant. You help potential buyers understand a B2B SaaS product.
+    agent_name = product_config.agent_name if product_config else "the demo assistant"
+    navigation_style = product_config.navigation_style if product_config else "show_while_telling"
+    enthusiasm = product_config.enthusiasm if product_config else 60
+    warmth = product_config.warmth if product_config else 60
+
+    system = f"""You are {agent_name}, a product demo assistant. You help potential buyers understand a B2B SaaS product.
 Rules:
 - Be concise but helpful (2-4 sentences)
 - If you have context from docs, use it to ground your answer
 - If showing a demo, briefly describe what you'll show
 - Never make up features not mentioned in the context
 - If uncertain, say you'll check and verify
-- Be conversational and friendly"""
+- Be conversational and friendly
+- Keep the tone warm ({warmth}/100) and enthusiastic ({enthusiasm}/100)
+- Default navigation style: {navigation_style}"""
 
     prompt_parts = [f"Buyer's question: {user_message}"]
 
@@ -180,6 +213,9 @@ Rules:
         prompt_parts.append(f"\nRelevant product documentation:\n{context[:1500]}")
     else:
         prompt_parts.append("\nNo specific documentation found for this question.")
+
+    if live_page_context:
+        prompt_parts.append(f"\nCurrent live product state:\n{live_page_context}")
 
     if decision == "answer_and_demo" and recipe_name:
         prompt_parts.append(f"\nYou will also demonstrate this with the '{recipe_name}' workflow.")
@@ -189,6 +225,8 @@ Rules:
         prompt_parts.append("\nThe question is unclear. Ask for clarification about what they'd like to see.")
 
     prompt = "\n".join(prompt_parts)
+    if navigation_style == "show_while_telling":
+        prompt += "\nExplain the product while you show it. Mention the current screen area before the next step."
 
     try:
         return await generate(prompt, system)
@@ -197,4 +235,6 @@ Rules:
         # Fallback response
         if context:
             return f"Based on our documentation: {context[:300]}... Would you like me to show you this in the product?"
+        if live_page_context:
+            return f"From the live product page I can currently see: {live_page_context[:300]}... Tell me what area you want me to focus on."
         return "I'd be happy to help! Could you tell me a bit more about what you're looking for? I can show you features directly in the product."

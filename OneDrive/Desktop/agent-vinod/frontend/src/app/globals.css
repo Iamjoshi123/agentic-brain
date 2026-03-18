@@ -1,50 +1,429 @@
+@import url("https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700&f[]=general-sans@400,500,600,700&f[]=cabinet-grotesk@500,700&display=swap");
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #0a0a0b;
+  --bg-secondary: #141416;
+  --bg-tertiary: #1c1c1f;
+  --bg-elevated: #232326;
+  --text-primary: #edefef;
+  --text-secondary: #8e8e93;
+  --text-tertiary: #5a5a5e;
+  --accent-primary: #e8a84c;
+  --accent-primary-hover: #d4963e;
+  --accent-primary-muted: rgba(232, 168, 76, 0.12);
+  --accent-primary-glow: rgba(232, 168, 76, 0.06);
+  --success: #34c759;
+  --warning: #ff9f0a;
+  --error: #ff453a;
+  --info: #5ac8fa;
+  --border-subtle: rgba(255, 255, 255, 0.06);
+  --border-default: rgba(255, 255, 255, 0.1);
+  --border-active: rgba(232, 168, 76, 0.3);
+  --surface-base: rgba(255, 255, 255, 0.04);
+  --surface-raised: rgba(255, 255, 255, 0.06);
+  --surface-muted: rgba(255, 255, 255, 0.03);
+  --surface-hover: rgba(255, 255, 255, 0.08);
+  --surface-accent: rgba(232, 168, 76, 0.12);
+  --surface-overlay: rgba(255, 255, 255, 0.04);
+  --surface-backdrop: rgba(255, 255, 255, 0.02);
+  --shadow-soft: 0 24px 70px rgba(0, 0, 0, 0.16);
+  --shadow-panel: 0 30px 80px rgba(0, 0, 0, 0.24);
+  --focus-ring: 0 0 0 3px rgba(232, 168, 76, 0.08);
+  --demo-border: rgba(255, 255, 255, 0.08);
+  --demo-shadow: 0 0 80px rgba(232, 168, 76, 0.03);
+  --font-sans: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Satoshi", var(--font-sans), sans-serif;
+}
+
 @layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
   body {
-    @apply bg-gray-50 text-gray-900 antialiased;
+    margin: 0;
+    min-height: 100vh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    font-family: var(--font-display), sans-serif;
+    letter-spacing: -0.01em;
+  }
+
+  button,
+  input,
+  textarea {
+    font: inherit;
   }
 }
 
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 text-white px-4 py-2 rounded-lg hover:bg-primary-700
-           transition-colors font-medium disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    background: var(--accent-primary);
+    color: #f8fafc;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
   }
+
+  .btn-primary:hover {
+    background: var(--accent-primary-hover);
+  }
+
   .btn-secondary {
-    @apply bg-white text-gray-700 px-4 py-2 rounded-lg border border-gray-300
-           hover:bg-gray-50 transition-colors font-medium;
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-muted);
+    color: var(--text-primary);
   }
+
+  .btn-secondary:hover {
+    background: var(--surface-hover);
+  }
+
   .btn-danger {
-    @apply bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700
-           transition-colors font-medium;
+    @apply inline-flex items-center justify-center rounded-2xl px-4 py-2.5 text-sm font-medium transition-colors;
+    background: rgba(255, 69, 58, 0.14);
+    color: #ffd2ce;
   }
-  .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2
-           focus:ring-primary-500 focus:border-primary-500 outline-none;
+
+  .input,
+  .textarea,
+  .stage-input {
+    @apply w-full rounded-xl px-4 py-3 outline-none transition-all;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-raised);
+    color: var(--text-primary);
   }
-  .textarea {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2
-           focus:ring-primary-500 focus:border-primary-500 outline-none resize-y;
+
+  .input::placeholder,
+  .textarea::placeholder,
+  .stage-input::placeholder {
+    color: var(--text-tertiary);
   }
+
+  .input:focus,
+  .textarea:focus,
+  .stage-input:focus {
+    border-color: var(--border-active);
+    box-shadow: var(--focus-ring);
+  }
+
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply rounded-[24px] p-5;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-base);
+    box-shadow: var(--shadow-soft);
   }
+
   .badge {
-    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[11px] uppercase tracking-[0.12em];
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-muted);
+    color: var(--text-secondary);
   }
-  .badge-green {
-    @apply badge bg-green-100 text-green-800;
+
+  .stage-pill {
+    @apply inline-flex items-center rounded-full px-3 py-1.5 text-[11px] uppercase tracking-[0.12em];
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-muted);
+    color: var(--text-secondary);
   }
-  .badge-blue {
-    @apply badge bg-blue-100 text-blue-800;
+
+  .stage-button-primary {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm font-medium transition-all disabled:cursor-not-allowed disabled:opacity-50;
+    background: linear-gradient(180deg, color-mix(in srgb, var(--accent-primary) 92%, white 8%) 0%, var(--accent-primary-hover) 100%);
+    color: #f8fafc;
+    box-shadow: 0 18px 40px rgba(0, 0, 0, 0.14);
   }
-  .badge-yellow {
-    @apply badge bg-yellow-100 text-yellow-800;
+
+  .stage-button-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 22px 45px rgba(0, 0, 0, 0.18);
   }
-  .badge-red {
-    @apply badge bg-red-100 text-red-800;
+
+  .stage-button-secondary,
+  .stage-button-ghost {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-3 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-primary);
+  }
+
+  .stage-button-secondary {
+    background: var(--surface-raised);
+  }
+
+  .stage-button-secondary:hover,
+  .stage-button-ghost:hover {
+    background: var(--surface-hover);
+  }
+
+  .stage-button-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+  }
+
+  .font-display {
+    font-family: var(--font-display), sans-serif;
+  }
+
+  .admin-theme {
+    --bg-primary: #f6f4ef;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f2efe8;
+    --bg-elevated: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #6b6b6e;
+    --text-tertiary: #a0a0a5;
+    --accent-primary: #d4963e;
+    --accent-primary-hover: #c78833;
+    --accent-primary-muted: rgba(212, 150, 62, 0.12);
+    --accent-primary-glow: rgba(212, 150, 62, 0.06);
+    --border-subtle: rgba(26, 26, 26, 0.08);
+    --border-default: rgba(26, 26, 26, 0.12);
+    --border-active: rgba(212, 150, 62, 0.28);
+    --surface-base: rgba(255, 255, 255, 0.94);
+    --surface-raised: rgba(255, 255, 255, 0.98);
+    --surface-muted: #fbfaf7;
+    --surface-hover: #f5f2ea;
+    --surface-accent: rgba(212, 150, 62, 0.08);
+    --surface-overlay: rgba(255, 255, 255, 0.88);
+    --surface-backdrop: rgba(246, 244, 239, 0.92);
+    --shadow-soft: 0 8px 24px rgba(26, 26, 26, 0.03);
+    --shadow-panel: 0 18px 44px rgba(26, 26, 26, 0.04);
+    --focus-ring: 0 0 0 3px rgba(212, 150, 62, 0.1);
+    --font-sans: "General Sans", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "General Sans", ui-sans-serif, system-ui, sans-serif;
+    position: relative;
+    isolation: isolate;
+    color: var(--text-primary);
+    font-family: var(--font-sans);
+    background:
+      radial-gradient(circle at top right, rgba(212, 150, 62, 0.06), transparent 28%),
+      linear-gradient(180deg, #faf9f6 0%, #f6f4ef 100%);
+  }
+
+  .admin-theme::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0)),
+      radial-gradient(circle at left top, rgba(212, 150, 62, 0.04), transparent 28%);
+    pointer-events: none;
+  }
+
+  .admin-shell-grid {
+    position: relative;
+    z-index: 1;
+  }
+
+  .admin-theme .btn-primary {
+    background: var(--accent-primary);
+    color: #1a1a1a;
+    box-shadow: none;
+  }
+
+  .admin-theme .btn-primary:hover {
+    background: var(--accent-primary-hover);
+  }
+
+  .admin-theme .btn-secondary,
+  .admin-theme .stage-button-secondary,
+  .admin-theme .stage-button-ghost {
+    background: rgba(255, 255, 255, 0.84);
+    box-shadow: none;
+  }
+
+  .admin-sidebar {
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-overlay);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(10px);
+  }
+
+  .admin-main {
+    min-width: 0;
+  }
+
+  .admin-header-card {
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: var(--shadow-soft);
+    backdrop-filter: blur(8px);
+  }
+
+  .admin-nav-link {
+    display: block;
+    border: 1px solid transparent;
+    border-radius: 0.95rem;
+    padding: 0.78rem 0.9rem;
+    color: var(--text-secondary);
+    transition:
+      background-color 160ms ease,
+      border-color 160ms ease,
+      color 160ms ease;
+  }
+
+  .admin-nav-link:hover {
+    border-color: var(--border-subtle);
+    background: var(--surface-muted);
+    color: var(--text-primary);
+  }
+
+  .admin-nav-link[data-active="true"] {
+    border-color: var(--border-active);
+    background: rgba(252, 248, 239, 0.98);
+    color: var(--text-primary);
+    box-shadow: inset 0 0 0 1px rgba(212, 150, 62, 0.06);
+  }
+
+  .admin-nav-kicker {
+    display: block;
+    margin-top: 0.2rem;
+    color: var(--text-tertiary);
+    font-size: 0.72rem;
+    line-height: 1.25;
+  }
+
+  .admin-eyebrow {
+    font-size: 0.7rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+  }
+
+  .admin-kpi {
+    border: 1px solid var(--border-subtle);
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  .admin-code {
+    display: block;
+    overflow-x: auto;
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    background: #fbfaf7;
+    color: var(--text-primary);
+    padding: 0.85rem 0.95rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    font-size: 0.83rem;
+    line-height: 1.5;
+  }
+
+  .admin-note {
+    border: 1px solid var(--border-subtle);
+    border-radius: 1.25rem;
+    background: #fbfaf7;
+    padding: 1rem;
+    color: var(--text-secondary);
+  }
+
+  .admin-segmented {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.28rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.76);
+  }
+
+  .admin-segment {
+    @apply inline-flex items-center justify-center rounded-[0.85rem] px-3.5 py-2 text-sm transition-colors;
+    border: 1px solid transparent;
+    color: var(--text-secondary);
+  }
+
+  .admin-segment:hover {
+    background: var(--surface-muted);
+    color: var(--text-primary);
+  }
+
+  .admin-segment[data-active="true"] {
+    border-color: var(--border-active);
+    background: #ffffff;
+    color: var(--text-primary);
+    box-shadow: none;
+  }
+
+  .admin-slider {
+    width: 100%;
+    accent-color: var(--accent-primary);
+  }
+
+  .admin-divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, var(--border-subtle) 18%, var(--border-subtle) 82%, transparent 100%);
+  }
+
+  .admin-table-row {
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background-color 160ms ease;
+  }
+
+  .admin-table-row:hover {
+    background: rgba(251, 250, 247, 0.92);
+  }
+
+  .admin-radio {
+    border: 1px solid var(--border-subtle);
+    border-radius: 1rem;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.9rem 1rem;
+    transition:
+      border-color 160ms ease,
+      background-color 160ms ease;
+  }
+
+  .admin-radio[data-active="true"] {
+    border-color: var(--border-active);
+    background: rgba(252, 248, 239, 0.98);
+  }
+
+  .admin-empty {
+    border: 1px dashed var(--border-subtle);
+    border-radius: 1.25rem;
+    background: rgba(255, 255, 255, 0.5);
+  }
+}
+
+@layer utilities {
+  @keyframes pointer-ping-once {
+    0% {
+      transform: translate(-50%, -50%) scale(0.92);
+      opacity: 0.85;
+    }
+
+    70% {
+      transform: translate(-50%, -50%) scale(1.14);
+      opacity: 1;
+    }
+
+    100% {
+      transform: translate(-50%, -50%) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .animate-ping-once {
+    animation: pointer-ping-once 240ms ease-out 1;
   }
 }

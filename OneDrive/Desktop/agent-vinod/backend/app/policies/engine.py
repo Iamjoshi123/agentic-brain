@@ -13,8 +13,11 @@ logger = logging.getLogger(__name__)
 BUILTIN_BLOCKED_PATTERNS = [
     (r"\b(pricing|discount|deal|negotiate|bargain)\b", "escalate", "Pricing/discount discussion requires human sales rep"),
     (r"\b(contract|legal|terms|agreement|procurement|NDA)\b", "escalate", "Legal/procurement topics require human involvement"),
-    (r"\b(billing|invoice|payment|subscription|charge|purchase|upgrade plan)\b", "refuse", "Billing/payment changes not allowed in demo"),
-    (r"\b(delete all|drop table|rm -rf|format|destroy)\b", "refuse", "Destructive operations not allowed"),
+    (
+        r"\b(delete all|drop table|rm -rf|format|destroy|wipe|reset workspace|remove all users|revoke all access)\b",
+        "refuse",
+        "Destructive operations not allowed",
+    ),
 ]
 
 
@@ -54,7 +57,7 @@ def evaluate_policy(
     # Check workspace-specific policy rules
     statement = select(PolicyRule).where(
         PolicyRule.workspace_id == workspace_id,
-        PolicyRule.is_active == True,
+        PolicyRule.is_active,
     )
     rules = db.exec(statement).all()
 

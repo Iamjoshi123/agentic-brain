@@ -61,6 +61,44 @@ npm install
 npm run dev
 ```
 
+### Real Acceptance Scenario
+
+The default seed script now loads a concrete buyer-demo workspace from `fixtures/acceptance/acme-crm-pro/`. Use that when you want to validate the product as a real workflow instead of as isolated APIs.
+
+```bash
+npm run seed:acceptance
+npm run test:acceptance
+```
+
+Detailed manual runbook:
+
+- `docs/acceptance/acme-crm-pro.md`
+
+### Saleshandy Live Demo
+
+The seed script also creates a `Saleshandy Live Demo` workspace for the public `https://my.saleshandy.com/demo` product flow. This workspace uses `browser_auth_mode=none`, so the live browser can start without sandbox credentials.
+
+Local setup for the real-product path:
+
+```bash
+npm run livekit:up
+npm run seed:acceptance
+```
+
+For Windows local testing, prefer LiveKit Cloud over Dockerized LiveKit for the real browser+voice path:
+
+- `docs/acceptance/livekit-cloud.md`
+
+One-command cloud start:
+
+```bash
+npm run start:cloud
+```
+
+Detailed runbook:
+
+- `docs/acceptance/saleshandy-live.md`
+
 ### Make Commands
 
 ```bash

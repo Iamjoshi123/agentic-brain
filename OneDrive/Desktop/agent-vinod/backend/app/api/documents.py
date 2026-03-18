@@ -3,7 +3,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models.document import Document, DocumentCreate, DocumentRead, DocumentChunk
+from app.models.document import Document, DocumentRead, DocumentChunk
 from app.models.workspace import Workspace
 from app.retrieval.ingest import ingest_document
 
@@ -44,7 +44,7 @@ async def upload_document(
 
     # Ingest: chunk + embed + store
     if text_content:
-        num_chunks = ingest_document(db, doc, content_override=text_content)
+        ingest_document(db, doc, content_override=text_content)
         db.refresh(doc)
 
     return doc

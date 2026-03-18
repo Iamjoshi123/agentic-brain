@@ -81,7 +81,7 @@ def _try_docling_parse(document: Document) -> Optional[str]:
     """Attempt to parse document with Docling."""
     try:
         from docling.document_converter import DocumentConverter
-        converter = DocumentConverter()
+        DocumentConverter()
         # This would need a file path; for MVP we rely on content_text
         logger.info("Docling parsing would require file path - using content_text")
         return None

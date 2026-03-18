@@ -1,36 +1,6 @@
 """Basic API tests for Agentic Demo Brain."""
 
-import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, SQLModel, create_engine
-from sqlmodel.pool import StaticPool
-
-from app.main import app
-from app.database import get_session
-
-
-# Test database setup
-@pytest.fixture(name="session")
-def session_fixture():
-    engine = create_engine(
-        "sqlite://",
-        connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
-    )
-    SQLModel.metadata.create_all(engine)
-    with Session(engine) as session:
-        yield session
-
-
-@pytest.fixture(name="client")
-def client_fixture(session: Session):
-    def get_session_override():
-        return session
-
-    app.dependency_overrides[get_session] = get_session_override
-    client = TestClient(app)
-    yield client
-    app.dependency_overrides.clear()
 
 
 def test_root(client: TestClient):
@@ -55,7 +25,6 @@ def test_create_workspace(client: TestClient):
     data = response.json()
     assert data["name"] == "Test CRM"
     assert data["public_token"]
-    return data
 
 
 def test_list_workspaces(client: TestClient):

@@ -5,10 +5,13 @@ Otherwise, serves as a stub that returns text-only mode.
 """
 
 import logging
+import asyncio
 from typing import Optional
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+_whisper_model = None
+_whisper_model_lock = asyncio.Lock()
 
 
 class VoiceSession:
@@ -87,9 +90,7 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     Falls back to returning empty string if faster-whisper is unavailable.
     """
     try:
-        from faster_whisper import WhisperModel
-
-        model = WhisperModel("base", device="cpu", compute_type="int8")
+        model = await _get_whisper_model()
         import tempfile
         import os
 
@@ -98,9 +99,20 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
             tmp_path = f.name
 
         try:
-            segments, _ = model.transcribe(tmp_path)
-            text = " ".join(segment.text for segment in segments)
-            return text.strip()
+            segments, _ = model.transcribe(
+                tmp_path,
+                language=settings.voice_language,
+                beam_size=1,
+                best_of=1,
+                temperature=0.0,
+                vad_filter=False,
+                condition_on_previous_text=False,
+            )
+            text = " ".join(segment.text for segment in segments).strip()
+            text = _sanitize_transcript(text)
+            if len(text) < settings.voice_min_transcript_chars:
+                return ""
+            return text
         finally:
             os.unlink(tmp_path)
     except ImportError:
@@ -109,3 +121,47 @@ async def transcribe_audio(audio_bytes: bytes) -> str:
     except Exception as e:
         logger.error(f"Transcription failed: {e}")
         return ""
+
+
+async def _get_whisper_model():
+    global _whisper_model
+    if _whisper_model is not None:
+        return _whisper_model
+
+    async with _whisper_model_lock:
+        if _whisper_model is not None:
+            return _whisper_model
+
+        from faster_whisper import WhisperModel
+
+        _whisper_model = WhisperModel(settings.voice_whisper_model, device="cpu", compute_type="int8")
+        return _whisper_model
+
+
+def _sanitize_transcript(text: str) -> str:
+    cleaned = " ".join(text.split()).strip()
+    if not cleaned:
+        return ""
+
+    sentence = cleaned.rstrip(".!? ").strip()
+    if not sentence:
+        return ""
+
+    repeated = f"{sentence}. {sentence}".lower()
+    if repeated in cleaned.lower() or _has_repeated_phrase(sentence):
+        return ""
+
+    return cleaned
+
+
+def _has_repeated_phrase(sentence: str) -> bool:
+    tokens = sentence.lower().split()
+    if len(tokens) < 4:
+        return False
+
+    for size in range(4, min(10, len(tokens) // 2 + 1)):
+        chunk = " ".join(tokens[:size])
+        repeated = " ".join([chunk] * 3)
+        if repeated in " ".join(tokens):
+            return True
+    return False

@@ -21,10 +21,16 @@ export default function HomePage() {
             Admin Dashboard
           </Link>
           <Link
+            href="/meet/demo-acme-crm-001"
+            className="btn-secondary text-lg px-8 py-3"
+          >
+            Try Meeting V2
+          </Link>
+          <Link
             href="/demo/demo-acme-crm-001"
             className="btn-secondary text-lg px-8 py-3"
           >
-            Try Demo
+            Legacy Demo
           </Link>
         </div>
         <div className="mt-12 text-sm text-gray-500">

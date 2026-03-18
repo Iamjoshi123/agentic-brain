@@ -1,7 +1,6 @@
 """Qdrant vector store integration for document retrieval."""
 
 import logging
-from typing import Optional
 from app.config import settings
 from app.retrieval.embeddings import embed_texts, embedding_dimension
 
@@ -109,14 +108,26 @@ def search(query: str, workspace_id: str, top_k: int = 5) -> list[dict]:
 
         from qdrant_client.models import Filter, FieldCondition, MatchValue
 
-        results = client.search(
-            collection_name=settings.qdrant_collection,
-            query_vector=query_embedding[0],
-            query_filter=Filter(
-                must=[FieldCondition(key="workspace_id", match=MatchValue(value=workspace_id))]
-            ),
-            limit=top_k,
+        query_filter = Filter(
+            must=[FieldCondition(key="workspace_id", match=MatchValue(value=workspace_id))]
         )
+        if hasattr(client, "search"):
+            results = client.search(
+                collection_name=settings.qdrant_collection,
+                query_vector=query_embedding[0],
+                query_filter=query_filter,
+                limit=top_k,
+            )
+        elif hasattr(client, "query_points"):
+            response = client.query_points(
+                collection_name=settings.qdrant_collection,
+                query=query_embedding[0],
+                query_filter=query_filter,
+                limit=top_k,
+            )
+            results = getattr(response, "points", response)
+        else:
+            raise AttributeError("Qdrant client does not expose search or query_points")
 
         return [
             {
@@ -152,7 +163,7 @@ def _keyword_fallback(query: str, workspace_id: str, top_k: int) -> list[dict]:
         if score > 0:
             scored.append((score, chunk))
 
-    scored.sort(key=lambda x: x[0], reverse=True)
+    scored.sort(key=lambda x: (-x[0], x[1].chunk_index, x[1].document_id, x[1].id))
 
     return [
         {

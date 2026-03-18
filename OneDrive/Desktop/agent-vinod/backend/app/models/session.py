@@ -15,9 +15,14 @@ class DemoSession(SQLModel, table=True):
     status: str = Field(default="active")  # active, ended, error
     buyer_name: Optional[str] = None
     buyer_email: Optional[str] = None
-    mode: str = Field(default="text")  # text, voice
+    mode: str = Field(default="text")  # text, voice, live
     credential_id: Optional[str] = None  # locked credential
     browser_session_id: Optional[str] = None
+    live_status: str = Field(default="idle")  # idle, starting, live, paused, error, ended
+    active_recipe_id: Optional[str] = None
+    current_step_index: int = Field(default=0)
+    live_room_name: Optional[str] = None
+    live_participant_identity: Optional[str] = None
     started_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     ended_at: Optional[datetime] = None
 
@@ -83,6 +88,10 @@ class SessionRead(SQLModel):
     buyer_name: Optional[str]
     buyer_email: Optional[str]
     mode: str
+    live_status: str
+    active_recipe_id: Optional[str]
+    current_step_index: int
+    live_room_name: Optional[str]
     started_at: datetime
     ended_at: Optional[datetime]
 
@@ -116,3 +125,24 @@ class SessionSummaryRead(SQLModel):
     total_actions: int
     duration_seconds: int
     created_at: datetime
+
+
+class LiveStartRead(SQLModel):
+    mode: str
+    livekit_url: Optional[str] = None
+    room_name: Optional[str] = None
+    participant_token: Optional[str] = None
+    participant_identity: Optional[str] = None
+    participant_name: Optional[str] = None
+    event_ws_url: Optional[str] = None
+    browser_session_id: Optional[str] = None
+    capabilities_json: str = "{}"
+    message: Optional[str] = None
+
+
+class LiveControlRead(SQLModel):
+    session_id: str
+    live_status: str
+    active_recipe_id: Optional[str] = None
+    current_step_index: int = 0
+    detail: Optional[str] = None

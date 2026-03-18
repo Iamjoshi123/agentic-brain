@@ -6,6 +6,22 @@ from app.models.credential import SandboxCredential, SandboxLock
 from app.models.recipe import DemoRecipe
 from app.models.session import DemoSession, SessionMessage, BrowserAction, SessionSummary
 from app.models.policy import PolicyRule
+from app.models.admin import (
+    Organization,
+    AdminUser,
+    Membership,
+    Invite,
+    AuthSession,
+    BillingAccount,
+    ApiCredentialSet,
+    BrandingSettings,
+    ProductConfig,
+    ProductSessionSettings,
+    ProductShareSettings,
+    KnowledgeSource,
+    KnowledgeJob,
+    SessionRecording,
+)
 
 __all__ = [
     "Workspace",
@@ -19,4 +35,18 @@ __all__ = [
     "BrowserAction",
     "SessionSummary",
     "PolicyRule",
+    "Organization",
+    "AdminUser",
+    "Membership",
+    "Invite",
+    "AuthSession",
+    "BillingAccount",
+    "ApiCredentialSet",
+    "BrandingSettings",
+    "ProductConfig",
+    "ProductSessionSettings",
+    "ProductShareSettings",
+    "KnowledgeSource",
+    "KnowledgeJob",
+    "SessionRecording",
 ]

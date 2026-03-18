@@ -2,8 +2,6 @@
 
 import json
 import logging
-from datetime import timezone
-from typing import Optional
 from sqlmodel import Session, select
 from app.models.session import DemoSession, SessionMessage, BrowserAction, SessionSummary
 

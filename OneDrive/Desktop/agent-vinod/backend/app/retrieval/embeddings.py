@@ -2,7 +2,6 @@
 
 import logging
 import hashlib
-from typing import Optional
 import httpx
 from app.config import settings
 
@@ -61,7 +60,6 @@ def embed_texts(texts: list[str]) -> list[list[float]]:
 
 def _embed_openai(texts: list[str]) -> list[list[float]]:
     """Call OpenAI embeddings API synchronously."""
-    import httpx
     resp = httpx.post(
         "https://api.openai.com/v1/embeddings",
         headers={"Authorization": f"Bearer {settings.openai_api_key}"},

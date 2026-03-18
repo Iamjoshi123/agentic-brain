@@ -1,20 +1,29 @@
-"""Seed script - populates the database with sample data for demo/testing."""
+"""Seed script - populates the database with the acceptance demo workspace."""
 
 import json
 import sys
 import os
+from pathlib import Path
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app.database import create_db_and_tables, engine
 from app.models import (
-    Workspace, Document, DocumentChunk, SandboxCredential,
-    DemoRecipe, PolicyRule, DemoSession, SessionMessage,
+    Workspace, Document, SandboxCredential,
+    DemoRecipe, PolicyRule,
 )
 from app.services.encryption import encrypt
 from app.retrieval.ingest import ingest_document
 from sqlmodel import Session
+
+FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "acceptance" / "acme-crm-pro"
+SALESHANDY_FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "acceptance" / "saleshandy-demo"
+
+
+def _load_fixture(filename: str, fixture_dir: Path = FIXTURE_DIR) -> str:
+    path = fixture_dir / filename
+    return path.read_text(encoding="utf-8")
 
 
 def seed():
@@ -37,6 +46,7 @@ def seed():
             description="Demo workspace for Acme CRM Pro - a modern B2B customer relationship management platform",
             product_url="http://localhost:9090",
             allowed_domains="localhost,127.0.0.1",
+            browser_auth_mode="credentials",
             public_token="demo-acme-crm-001",
         )
         db.add(workspace)
@@ -49,115 +59,22 @@ def seed():
             {
                 "filename": "product-overview.md",
                 "file_type": "md",
-                "content": """# Acme CRM Pro - Product Overview
-
-Acme CRM Pro is a modern customer relationship management platform built for B2B sales teams.
-
-## Key Features
-
-### Dashboard
-The main dashboard provides a real-time overview of your sales pipeline, including:
-- Active deals and their stages
-- Revenue forecasts
-- Team performance metrics
-- Recent activity feed
-
-### Contact Management
-Manage all your contacts and companies in one place:
-- Create and edit contact records with custom fields
-- Track communication history
-- Link contacts to companies and deals
-- Import/export contacts via CSV
-
-### Deal Pipeline
-Visual pipeline management for your sales process:
-- Drag-and-drop deal cards between stages
-- Custom pipeline stages
-- Deal value tracking
-- Win/loss analysis
-
-### Reporting & Analytics
-Comprehensive reporting suite:
-- Sales performance dashboards
-- Revenue by product, region, or rep
-- Pipeline velocity metrics
-- Custom report builder
-- Export to PDF or CSV
-
-### Search
-Powerful global search across all records:
-- Full-text search across contacts, companies, and deals
-- Filter by type, date, owner, or custom fields
-- Saved search queries
-- Recent searches
-
-### Integrations
-Connect with your existing tools:
-- Email (Gmail, Outlook)
-- Calendar sync
-- Slack notifications
-- Zapier/webhook support
-- REST API access
-""",
+                "content": _load_fixture("product-overview.md"),
             },
             {
-                "filename": "feature-contacts.md",
+                "filename": "contacts-and-import.md",
                 "file_type": "md",
-                "content": """# Contact Management - Detailed Guide
-
-## Creating a New Contact
-1. Navigate to the Contacts page from the sidebar
-2. Click the "New Contact" button in the top right
-3. Fill in the required fields: First Name, Last Name, Email
-4. Optionally add: Phone, Company, Title, Address
-5. Add tags for segmentation
-6. Click "Save Contact"
-
-## Editing a Contact
-1. Find the contact via search or browsing
-2. Click on the contact name to open their profile
-3. Click "Edit" button
-4. Modify any fields
-5. Click "Save Changes"
-
-## Contact Custom Fields
-Admins can add custom fields:
-- Text, Number, Date, Dropdown, Multi-select
-- Configure in Settings > Custom Fields > Contacts
-
-## Communication Tracking
-- All emails sent/received are logged automatically
-- Manual notes and call logs can be added
-- Activity timeline shows full interaction history
-""",
+                "content": _load_fixture("contacts-and-import.md"),
             },
             {
-                "filename": "feature-reporting.md",
+                "filename": "reporting-and-analytics.md",
                 "file_type": "md",
-                "content": """# Reporting & Analytics Guide
-
-## Accessing Reports
-Navigate to Analytics from the main sidebar menu.
-
-## Built-in Reports
-1. **Sales Overview** - Pipeline value, win rate, average deal size
-2. **Revenue Forecast** - Projected revenue based on pipeline stage probabilities
-3. **Team Performance** - Individual rep metrics and comparisons
-4. **Activity Report** - Calls, emails, meetings logged per rep
-
-## Custom Reports
-1. Click "New Report"
-2. Select data source (Contacts, Deals, Activities)
-3. Choose metrics and dimensions
-4. Apply filters
-5. Select visualization type (chart, table, pivot)
-6. Save and optionally schedule email delivery
-
-## Dashboard Widgets
-- Add report widgets to your dashboard
-- Drag to rearrange
-- Set auto-refresh intervals
-""",
+                "content": _load_fixture("reporting-and-analytics.md"),
+            },
+            {
+                "filename": "commercial-boundaries.md",
+                "file_type": "md",
+                "content": _load_fixture("commercial-boundaries.md"),
             },
         ]
 
@@ -320,11 +237,150 @@ Navigate to Analytics from the main sidebar menu.
             print(f"  Created policy: {policy_data['description']}")
         db.commit()
 
-        print(f"\nSeed complete!")
+        # 6. Create a no-login Saleshandy workspace for live-browser demos
+        saleshandy = Workspace(
+            name="Saleshandy Live Demo",
+            description="Live browser demo workspace for Saleshandy using the public demo product flow",
+            product_url="https://my.saleshandy.com/demo",
+            allowed_domains="my.saleshandy.com",
+            browser_auth_mode="none",
+            public_token="demo-saleshandy-001",
+        )
+        db.add(saleshandy)
+        db.commit()
+        db.refresh(saleshandy)
+        print(f"  Created workspace: {saleshandy.name} (token: {saleshandy.public_token})")
+
+        saleshandy_docs = [
+            {
+                "filename": "overview.md",
+                "file_type": "md",
+                "content": _load_fixture("overview.md", SALESHANDY_FIXTURE_DIR),
+            },
+            {
+                "filename": "workflows.md",
+                "file_type": "md",
+                "content": _load_fixture("workflows.md", SALESHANDY_FIXTURE_DIR),
+            },
+            {
+                "filename": "policies.md",
+                "file_type": "md",
+                "content": _load_fixture("policies.md", SALESHANDY_FIXTURE_DIR),
+            },
+        ]
+
+        for doc_data in saleshandy_docs:
+            doc = Document(
+                workspace_id=saleshandy.id,
+                filename=doc_data["filename"],
+                file_type=doc_data["file_type"],
+                content_text=doc_data["content"],
+            )
+            db.add(doc)
+            db.commit()
+            db.refresh(doc)
+            num_chunks = ingest_document(db, doc, content_override=doc_data["content"])
+            print(f"  Ingested document: {doc.filename} ({num_chunks} chunks)")
+
+        saleshandy_recipes = [
+            {
+                "name": "Open Saleshandy Sequences",
+                "description": "Bootstrap the public demo and stay on the Sequences module",
+                "trigger_phrases": "sequence,sequences,outreach,cadence,dashboard",
+                "priority": 6,
+                "steps": [
+                    {"action": "navigate", "target": "https://my.saleshandy.com/demo", "description": "Opening the Saleshandy public demo", "wait_ms": 4000},
+                    {"action": "wait_for_url", "target": "/sequence", "value": "15000", "description": "Waiting for the product to load into Sequences", "wait_ms": 0},
+                    {"action": "narrate", "value": "This is the Sequences module where outreach flows and activity are managed.", "wait_ms": 500},
+                ],
+            },
+            {
+                "name": "Show Reports",
+                "description": "Walk through the Saleshandy analytics and reporting section",
+                "trigger_phrases": "analytics,reports,metrics,reporting,performance",
+                "priority": 5,
+                "steps": [
+                    {"action": "navigate", "target": "https://my.saleshandy.com/demo", "description": "Loading the public demo", "wait_ms": 4000},
+                    {"action": "wait_for_url", "target": "/sequence", "value": "15000", "description": "Waiting for Saleshandy to finish demo bootstrap", "wait_ms": 0},
+                    {"action": "click", "target": "a[href='/reports']", "description": "Opening the Reports module", "wait_ms": 2500},
+                    {"action": "wait_for_url", "target": "/reports", "value": "10000", "description": "Waiting for Reports to load", "wait_ms": 0},
+                    {"action": "narrate", "value": "Reports is where performance and activity trends are reviewed.", "wait_ms": 500},
+                ],
+            },
+            {
+                "name": "Show CRM Prospects",
+                "description": "Open the CRM list and explain prospect organization",
+                "trigger_phrases": "crm,prospects,leads,list,contacts",
+                "priority": 5,
+                "steps": [
+                    {"action": "navigate", "target": "https://my.saleshandy.com/demo", "description": "Loading the public demo", "wait_ms": 4000},
+                    {"action": "wait_for_url", "target": "/sequence", "value": "15000", "description": "Waiting for Saleshandy to finish demo bootstrap", "wait_ms": 0},
+                    {"action": "click", "target": "a[href='/crm/list']", "description": "Opening the CRM list", "wait_ms": 2500},
+                    {"action": "wait_for_url", "target": "/crm/list", "value": "10000", "description": "Waiting for the CRM module to load", "wait_ms": 0},
+                    {"action": "narrate", "value": "The CRM list is where prospects and lead records are organized and filtered.", "wait_ms": 500},
+                ],
+            },
+            {
+                "name": "Show Unified Inbox",
+                "description": "Open the Unified Inbox to explain how responses are reviewed",
+                "trigger_phrases": "inbox,conversation,replies,reply,emails",
+                "priority": 4,
+                "steps": [
+                    {"action": "navigate", "target": "https://my.saleshandy.com/demo", "description": "Loading the public demo", "wait_ms": 4000},
+                    {"action": "wait_for_url", "target": "/sequence", "value": "15000", "description": "Waiting for Saleshandy to finish demo bootstrap", "wait_ms": 0},
+                    {"action": "click", "target": "a[href='/conversations']", "description": "Opening Unified Inbox", "wait_ms": 2500},
+                    {"action": "wait_for_url", "target": "/conversations", "value": "10000", "description": "Waiting for the inbox to load", "wait_ms": 0},
+                    {"action": "narrate", "value": "Unified Inbox centralizes replies and conversations so reps can triage from one place.", "wait_ms": 500},
+                ],
+            },
+        ]
+
+        for recipe_data in saleshandy_recipes:
+            recipe = DemoRecipe(
+                workspace_id=saleshandy.id,
+                name=recipe_data["name"],
+                description=recipe_data["description"],
+                trigger_phrases=recipe_data["trigger_phrases"],
+                steps_json=json.dumps(recipe_data["steps"]),
+                priority=recipe_data["priority"],
+            )
+            db.add(recipe)
+            print(f"  Created recipe: {recipe.name}")
+        db.commit()
+
+        saleshandy_policies = [
+            {
+                "rule_type": "escalation_condition",
+                "pattern": r"\b(pricing|discount|annual|enterprise|contract|procurement)\b",
+                "description": "Commercial conversations should be escalated during the public demo",
+                "action": "escalate",
+                "severity": "medium",
+            },
+            {
+                "rule_type": "blocked_route",
+                "pattern": r"/settings|/billing|/admin",
+                "description": "Settings, billing, and admin screens are blocked in the public demo",
+                "action": "refuse",
+                "severity": "high",
+            },
+        ]
+
+        for policy_data in saleshandy_policies:
+            rule = PolicyRule(
+                workspace_id=saleshandy.id,
+                **policy_data,
+            )
+            db.add(rule)
+            print(f"  Created policy: {policy_data['description']}")
+        db.commit()
+
+        print("\nSeed complete!")
         print(f"  Workspace ID: {workspace.id}")
         print(f"  Public token: {workspace.public_token}")
         print(f"  Demo link: http://localhost:3000/demo/{workspace.public_token}")
         print(f"  Admin link: http://localhost:3000/admin/workspaces/{workspace.id}")
+        print(f"  Saleshandy demo link: http://localhost:3000/demo/{saleshandy.public_token}")
+        print(f"  Saleshandy admin link: http://localhost:3000/admin/workspaces/{saleshandy.id}")
 
 
 if __name__ == "__main__":

@@ -1,5 +1,12 @@
 """FastAPI application entry point for Agentic Demo Brain."""
 
+import asyncio
+import sys
+
+# Windows requires ProactorEventLoop for subprocess support (Playwright)
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -7,7 +14,8 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.database import create_db_and_tables
-from app.api import workspaces, documents, credentials, recipes, policies, sessions, analytics, retrieval
+from app.api import admin, admin_auth, workspaces, documents, credentials, recipes, policies, sessions, analytics, retrieval
+from app.v2 import api as meetings_v2
 
 # Configure logging
 logging.basicConfig(
@@ -51,6 +59,8 @@ app.add_middleware(
 
 # Register API routers
 app.include_router(workspaces.router, prefix="/api")
+app.include_router(admin_auth.router, prefix="/api")
+app.include_router(admin.router, prefix="/api")
 app.include_router(documents.router, prefix="/api")
 app.include_router(credentials.router, prefix="/api")
 app.include_router(recipes.router, prefix="/api")
@@ -58,6 +68,7 @@ app.include_router(policies.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(analytics.router, prefix="/api")
 app.include_router(retrieval.router, prefix="/api")
+app.include_router(meetings_v2.router, prefix="/api")
 
 
 @app.get("/")

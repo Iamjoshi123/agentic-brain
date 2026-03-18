@@ -31,3 +31,12 @@ Thumbs.db
 *.db-journal
 backend/data/
 uploads/
+*-out.log
+*-err.log
+.coverage
+coverage.xml
+backend/coverage.xml
+frontend/coverage/
+frontend/test-results/
+data/screenshots/
+*.tsbuildinfo

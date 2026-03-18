@@ -20,11 +20,60 @@ async def generate(
 
     Priority: OpenAI > Anthropic > Ollama (local).
     """
+    if settings.app_env == "test":
+        marker = "Relevant product documentation:\n"
+        if marker in prompt:
+            snippet = prompt.split(marker, 1)[1].split("\n\n", 1)[0].strip()
+            return f"Test response based on docs: {snippet[:220]}"
+        return "Test response: Please share more detail about what you want to see."
+
+    if settings.deterministic_demo_mode:
+        raise RuntimeError("Deterministic demo mode is enabled")
+
+    if settings.has_bedrock:
+        return await _generate_bedrock(prompt, system, model or settings.aws_bedrock_model, max_tokens, temperature)
+    if settings.has_openrouter:
+        return await _generate_openrouter(prompt, system, model or settings.openrouter_model, max_tokens, temperature)
     if settings.has_openai:
         return await _generate_openai(prompt, system, model or "gpt-4o-mini", max_tokens, temperature)
     if settings.has_anthropic:
         return await _generate_anthropic(prompt, system, model or "claude-sonnet-4-20250514", max_tokens, temperature)
     return await _generate_ollama(prompt, system, model or "llama3.2", max_tokens, temperature)
+
+
+async def _generate_bedrock(prompt: str, system: str, model: str, max_tokens: int, temperature: float) -> str:
+    """Call AWS Bedrock Converse API with Bearer token auth."""
+    region = settings.aws_bedrock_region
+    url = f"https://bedrock-runtime.{region}.amazonaws.com/model/{model}/converse"
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            resp = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {settings.aws_bedrock_token}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "messages": [{"role": "user", "content": [{"text": f"{system}\n\n{prompt}"}]}],
+                    "inferenceConfig": {
+                        "maxTokens": max_tokens,
+                        "temperature": temperature,
+                    },
+                },
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            return data["output"]["message"]["content"][0]["text"]
+        except Exception as e:
+            logger.error(f"Bedrock API error: {e}")
+            return await _generate_ollama(
+                prompt,
+                system,
+                "llama3.2",
+                max_tokens,
+                temperature,
+                unavailable_message=_provider_failure_message("Bedrock", e),
+            )
 
 
 async def _generate_openai(prompt: str, system: str, model: str, max_tokens: int, temperature: float) -> str:
@@ -49,7 +98,51 @@ async def _generate_openai(prompt: str, system: str, model: str, max_tokens: int
         except Exception as e:
             logger.error(f"OpenAI API error: {e}")
             # Fall through to Ollama
-            return await _generate_ollama(prompt, system, "llama3.2", max_tokens, temperature)
+            return await _generate_ollama(
+                prompt,
+                system,
+                "llama3.2",
+                max_tokens,
+                temperature,
+                unavailable_message=_provider_failure_message("OpenAI", e),
+            )
+
+
+async def _generate_openrouter(prompt: str, system: str, model: str, max_tokens: int, temperature: float) -> str:
+    """Call OpenRouter chat completions API."""
+    if "embed" in model.lower():
+        raise RuntimeError(f"OpenRouter model {model} is an embedding model, not a chat model")
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        try:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {settings.openrouter_api_key}",
+                    "Content-Type": "application/json",
+                },
+                json={
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": prompt},
+                    ],
+                    "max_tokens": max_tokens,
+                    "temperature": temperature,
+                },
+            )
+            resp.raise_for_status()
+            return resp.json()["choices"][0]["message"]["content"]
+        except Exception as e:
+            logger.error(f"OpenRouter API error: {e}")
+            return await _generate_ollama(
+                prompt,
+                system,
+                "llama3.2",
+                max_tokens,
+                temperature,
+                unavailable_message=_provider_failure_message("OpenRouter", e),
+            )
 
 
 async def _generate_anthropic(prompt: str, system: str, model: str, max_tokens: int, temperature: float) -> str:
@@ -75,10 +168,24 @@ async def _generate_anthropic(prompt: str, system: str, model: str, max_tokens: 
             return resp.json()["content"][0]["text"]
         except Exception as e:
             logger.error(f"Anthropic API error: {e}")
-            return await _generate_ollama(prompt, system, "llama3.2", max_tokens, temperature)
+            return await _generate_ollama(
+                prompt,
+                system,
+                "llama3.2",
+                max_tokens,
+                temperature,
+                unavailable_message=_provider_failure_message("Anthropic", e),
+            )
 
 
-async def _generate_ollama(prompt: str, system: str, model: str, max_tokens: int, temperature: float) -> str:
+async def _generate_ollama(
+    prompt: str,
+    system: str,
+    model: str,
+    max_tokens: int,
+    temperature: float,
+    unavailable_message: Optional[str] = None,
+) -> str:
     """Call local Ollama API."""
     async with httpx.AsyncClient(timeout=120) as client:
         try:
@@ -99,10 +206,41 @@ async def _generate_ollama(prompt: str, system: str, model: str, max_tokens: int
             return resp.json().get("response", "I'm unable to generate a response right now.")
         except Exception as e:
             logger.error(f"Ollama API error: {e}")
+            if unavailable_message:
+                return unavailable_message
             return (
                 "I apologize, but I'm currently unable to process your request. "
                 "No LLM provider is available. Please check the backend configuration."
             )
+
+
+def _provider_failure_message(provider: str, error: Exception) -> str:
+    if isinstance(error, httpx.HTTPStatusError):
+        status = error.response.status_code
+        if status == 429:
+            return (
+                f"I apologize, but {provider} is temporarily rate limited right now. "
+                "Please retry in a moment."
+            )
+        if status == 401:
+            return (
+                f"I apologize, but {provider} rejected the request due to invalid credentials. "
+                "Please check the backend API key configuration."
+            )
+        if status == 403:
+            return (
+                f"I apologize, but {provider} rejected the request due to insufficient permissions. "
+                "Please check the backend account configuration."
+            )
+        return (
+            f"I apologize, but {provider} is currently unavailable "
+            f"(HTTP {status}). Please retry in a moment."
+        )
+
+    return (
+        f"I apologize, but {provider} is currently unavailable. "
+        "Please retry in a moment."
+    )
 
 
 async def generate_json(

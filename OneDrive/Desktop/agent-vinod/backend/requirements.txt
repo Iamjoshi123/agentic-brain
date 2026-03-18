@@ -9,17 +9,26 @@ httpx==0.28.1
 python-dotenv==1.0.1
 python-multipart==0.0.18
 cryptography==44.0.0
+livekit==1.1.2
+livekit-api==1.1.0
+livekit-agents[openai]==1.4.5
+Pillow==11.0.0
+websockets==15.0.1
+pyttsx3==2.98
+edge-tts==7.2.1
+webrtcvad-wheels==2.0.14
+faster-whisper==1.1.0
+playwright==1.49.1
 
 # Testing
 pytest==8.3.4
 pytest-asyncio==0.24.0
+pytest-cov==7.0.0
+ruff==0.12.11
 
 # --- Optional (install separately if needed) ---
 # pip install qdrant-client==1.12.1          # Vector store
 # pip install sentence-transformers==3.3.1   # Local embeddings
-# pip install playwright==1.49.1             # Browser automation
 # pip install docling==2.14.0                # Doc parsing
-# pip install openai==1.58.1                 # OpenAI LLM
+# pip install openai==2.28.0                 # OpenAI LLM
 # pip install anthropic==0.40.0              # Anthropic LLM
-# pip install livekit==0.17.1 livekit-agents==0.12.4  # Voice
-# pip install faster-whisper==1.1.0          # Local STT

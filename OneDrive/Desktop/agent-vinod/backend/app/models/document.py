@@ -15,6 +15,7 @@ class Document(SQLModel, table=True):
     file_type: str  # pdf, md, txt, png, jpg, manual_note
     content_text: Optional[str] = None  # raw extracted text
     metadata_json: Optional[str] = None  # JSON string of extra metadata
+    knowledge_source_id: Optional[str] = Field(default=None, foreign_key="knowledge_sources.id", index=True)
     status: str = Field(default="pending")  # pending, processing, ready, error
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
