@@ -33,6 +33,8 @@ backend/data/
 uploads/
 *-out.log
 *-err.log
+.pytest_cache/
+.ruff_cache/
 .coverage
 coverage.xml
 backend/coverage.xml
@@ -40,3 +42,9 @@ frontend/coverage/
 frontend/test-results/
 data/screenshots/
 *.tsbuildinfo
+/tmp/
+/_debug_browser.jpg
+/_fresh_runtime.jpg
+/_restart_backend.cmd
+/_restart_full_stack.cmd
+/_start_cloud_stack.cmd
