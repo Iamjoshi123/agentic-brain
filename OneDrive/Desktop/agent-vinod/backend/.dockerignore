@@ -1,0 +1,15 @@
+.git
+.gitignore
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+*.py[cod]
+*.db
+*.db-journal
+.coverage
+coverage.xml
+tests/
+tmp/
+data/
+agentic_demo_brain.db
+e2e.db
