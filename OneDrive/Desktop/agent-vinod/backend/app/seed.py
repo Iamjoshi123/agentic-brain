@@ -17,8 +17,21 @@ from app.services.encryption import encrypt
 from app.retrieval.ingest import ingest_document
 from sqlmodel import Session
 
-FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "acceptance" / "acme-crm-pro"
-SALESHANDY_FIXTURE_DIR = Path(__file__).resolve().parents[2] / "fixtures" / "acceptance" / "saleshandy-demo"
+
+def _resolve_fixture_dir(*parts: str) -> Path:
+    current = Path(__file__).resolve()
+    candidates = [
+        current.parents[2] / "fixtures" / "acceptance" / Path(*parts),
+        current.parents[1] / "fixtures" / "acceptance" / Path(*parts),
+    ]
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
+
+
+FIXTURE_DIR = _resolve_fixture_dir("acme-crm-pro")
+SALESHANDY_FIXTURE_DIR = _resolve_fixture_dir("saleshandy-demo")
 
 
 def _load_fixture(filename: str, fixture_dir: Path = FIXTURE_DIR) -> str:
