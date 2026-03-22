@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Response
 from sqlmodel import Session, select
 
+from app.config import settings
 from app.database import get_session
 from app.models.admin import AdminUser, AuthSession, LoginRequest, Membership
 from app.services.admin_auth import hash_token
@@ -36,7 +37,7 @@ def login(data: LoginRequest, response: Response, db: Session = Depends(get_sess
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False,
+        secure=not settings.is_dev,
         max_age=60 * 60 * 24 * 7,
         path="/",
     )
@@ -63,7 +64,7 @@ def logout(
         if session is not None:
             db.delete(session)
             db.commit()
-    response.delete_cookie("admin_session", path="/")
+    response.delete_cookie("admin_session", path="/", samesite="lax", secure=not settings.is_dev)
     return {"status": "ok"}
 
 

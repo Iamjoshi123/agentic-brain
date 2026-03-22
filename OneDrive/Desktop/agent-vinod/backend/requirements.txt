@@ -5,10 +5,12 @@ pydantic==2.10.3
 pydantic-settings==2.7.0
 sqlmodel==0.0.22
 aiosqlite==0.20.0
+psycopg2-binary==2.9.9
 httpx==0.28.1
 python-dotenv==1.0.1
 python-multipart==0.0.18
 cryptography==44.0.0
+qdrant-client==1.12.1
 livekit==1.1.2
 livekit-api==1.1.0
 livekit-agents[openai]==1.4.5
@@ -27,7 +29,6 @@ pytest-cov==7.0.0
 ruff==0.12.11
 
 # --- Optional (install separately if needed) ---
-# pip install qdrant-client==1.12.1          # Vector store
 # pip install sentence-transformers==3.3.1   # Local embeddings
 # pip install docling==2.14.0                # Doc parsing
 # pip install openai==2.28.0                 # OpenAI LLM

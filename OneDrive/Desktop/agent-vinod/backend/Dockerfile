@@ -1,6 +1,7 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 
 # Install system dependencies for Playwright
 RUN apt-get update && apt-get install -y \
@@ -16,4 +17,4 @@ RUN python -m playwright install chromium --with-deps
 COPY . .
 
 # Seed and start
-CMD ["sh", "-c", "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port 8000"]
+CMD ["sh", "-c", "python -m app.seed && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

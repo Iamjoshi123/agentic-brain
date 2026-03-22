@@ -202,7 +202,6 @@ export interface AdminProduct extends Workspace {
   recording_enabled: boolean;
   citation_mode: string;
   navigation_style: string;
-  demo_link?: string;
   live_link: string;
   embed_code: string;
   share_title: string;
@@ -273,7 +272,6 @@ export interface ProductSessionSettings {
 }
 
 export interface ProductShareSettings {
-  demo_link?: string;
   live_link: string;
   embed_code: string;
   share_title: string;

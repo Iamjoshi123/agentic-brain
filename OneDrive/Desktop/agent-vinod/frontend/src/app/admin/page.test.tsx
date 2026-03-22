@@ -77,7 +77,6 @@ describe("AdminPage", () => {
           recording_enabled: false,
           citation_mode: "admin_only",
           navigation_style: "show_while_telling",
-          demo_link: "http://localhost:3000/demo/demo-saleshandy-001",
           live_link: "http://localhost:3000/meet/demo-saleshandy-001",
           embed_code: "<iframe />",
           share_title: "Interactive product demo",

@@ -112,6 +112,12 @@ make docker-up    # Start via Docker Compose
 make docker-down  # Stop Docker Compose
 ```
 
+## Deployment
+
+For the easiest production setup with `frontend` on Vercel and `backend` on Railway, use:
+
+- `docs/deploy-vercel-railway.md`
+
 ## Project Structure
 
 The repo is moving toward this simpler shape:

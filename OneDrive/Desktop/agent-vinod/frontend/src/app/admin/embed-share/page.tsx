@@ -35,7 +35,7 @@ export default function AdminEmbedSharePage() {
   return (
     <AdminShell
       title="Embed & Share"
-      description="Use the canonical demo link, live meeting link, or iframe snippet for each product."
+      description="Use the live meeting link or iframe snippet for each product."
     >
       {error ? <p className="text-sm text-[var(--error)]">{error}</p> : null}
       <div className="space-y-4">
@@ -60,11 +60,7 @@ export default function AdminEmbedSharePage() {
             </div>
             <div className="mt-5 grid gap-4">
               <div>
-                <label className="mb-2 block text-sm text-[var(--text-primary)]">Demo link</label>
-                <code className="admin-code">{entry.demo_link}</code>
-              </div>
-              <div>
-                <label className="mb-2 block text-sm text-[var(--text-primary)]">Live link</label>
+                <label className="mb-2 block text-sm text-[var(--text-primary)]">Meeting link</label>
                 <code className="admin-code">{entry.live_link}</code>
               </div>
               <div>
