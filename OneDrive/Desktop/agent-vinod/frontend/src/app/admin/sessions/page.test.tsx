@@ -6,6 +6,7 @@ import AdminSessionsPage from "./page";
 
 const adminApiMock = vi.hoisted(() => ({
   me: vi.fn(),
+  listProducts: vi.fn(),
   listSessions: vi.fn(),
   getSessionDetail: vi.fn(),
 }));
@@ -26,6 +27,22 @@ describe("AdminSessionsPage", () => {
       organization: { id: "org-1", name: "DemoAgent", slug: "demoagent" },
       role: "owner",
     });
+    adminApiMock.listProducts.mockResolvedValue([
+      {
+        id: "ws-1",
+        name: "Acme CRM",
+        description: "Sales workspace",
+        product_url: "https://app.example.com",
+        allowed_domains: "app.example.com",
+        browser_auth_mode: "credentials",
+        public_token: "demo-acme-crm-001",
+        is_active: true,
+        knowledge_count: 4,
+        session_count: 7,
+        created_at: "2026-03-17T00:00:00.000Z",
+        updated_at: "2026-03-17T00:00:00.000Z",
+      },
+    ]);
     adminApiMock.listSessions.mockResolvedValue([
       {
         id: "sess-1",

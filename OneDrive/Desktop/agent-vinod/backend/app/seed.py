@@ -377,10 +377,10 @@ def seed():
         print("\nSeed complete!")
         print(f"  Workspace ID: {workspace.id}")
         print(f"  Public token: {workspace.public_token}")
-        print(f"  Demo link: http://localhost:3000/demo/{workspace.public_token}")
-        print(f"  Admin link: http://localhost:3000/admin/workspaces/{workspace.id}")
-        print(f"  Saleshandy demo link: http://localhost:3000/demo/{saleshandy.public_token}")
-        print(f"  Saleshandy admin link: http://localhost:3000/admin/workspaces/{saleshandy.id}")
+        print(f"  Meeting link: http://localhost:3000/meet/{workspace.public_token}")
+        print(f"  Admin link: http://localhost:3000/admin/products/{workspace.id}")
+        print(f"  Saleshandy meeting link: http://localhost:3000/meet/{saleshandy.public_token}")
+        print(f"  Saleshandy admin link: http://localhost:3000/admin/products/{saleshandy.id}")
 
 
 if __name__ == "__main__":

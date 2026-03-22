@@ -50,8 +50,8 @@ describe("AdminProductDetailPage", () => {
       public_token: "token-123",
       knowledge_count: 1,
       session_count: 1,
-      demo_link: "/demo/token-123",
       live_link: "/meet/token-123",
+      embed_code: "<iframe></iframe>",
       share_title: "Interactive product demo",
       share_description: "Try the demo",
     });
@@ -90,7 +90,6 @@ describe("AdminProductDetailPage", () => {
       recording_enabled: true,
     });
     adminApiMock.getProductShare.mockResolvedValue({
-      demo_link: "/demo/token-123",
       live_link: "/meet/token-123",
       embed_code: "<iframe></iframe>",
       share_title: "Interactive product demo",

@@ -9,19 +9,21 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Response, WebSocket, WebSocketDisconnect
 from sqlmodel import Session, select
 
-from app.analytics.summary import generate_session_summary
-from app.browser.executor import (
+from app.agent.browser import (
     close_browser_session,
     execute_action,
     execute_recipe,
-    get_browser_state,
     start_browser_session,
     take_screenshot,
+    get_browser_state,
 )
+from app.agent.events import event_broker
+from app.agent.planning import plan_response
+from app.agent.runtime import runtime_manager
+from app.agent.voice import VoiceSession
+from app.analytics.summary import generate_session_summary
 from app.config import settings
 from app.database import get_session
-from app.live.events import event_broker
-from app.live.runtime import runtime_manager
 from app.models.recipe import DemoRecipe
 from app.models.session import (
     BrowserAction,
@@ -38,8 +40,6 @@ from app.models.session import (
 from app.models.admin import SessionRecording
 from app.models.admin import ProductConfig
 from app.models.workspace import Workspace
-from app.services.planner import plan_response
-from app.voice.session import VoiceSession
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 

@@ -15,7 +15,12 @@ export default function AdminSettingsPage() {
     primary_color: "#D4963E",
     accent_color: "#1A1A1A",
   });
-  const [apiKeyForm, setApiKeyForm] = useState({ provider: "openai", label: "Org default", api_key: "", workspace_id: "" });
+  const [apiKeyForm, setApiKeyForm] = useState({
+    provider: "openai",
+    label: "Org default",
+    api_key: "",
+    workspace_id: "",
+  });
   const [saving, setSaving] = useState<string | null>(null);
 
   async function loadAll() {
@@ -82,39 +87,70 @@ export default function AdminSettingsPage() {
         <div className="grid gap-4 xl:grid-cols-[0.92fr_1.08fr]">
           <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
             <p className="admin-eyebrow">Account</p>
-            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Workspace owner</h2>
+            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">
+              Workspace owner
+            </h2>
             {account ? (
               <div className="mt-5 space-y-3 text-sm text-[var(--text-secondary)]">
-                <p><span className="text-[var(--text-primary)]">Organization:</span> {account.organization.name}</p>
-                <p><span className="text-[var(--text-primary)]">Owner:</span> {account.user.full_name}</p>
-                <p><span className="text-[var(--text-primary)]">Email:</span> {account.user.email}</p>
-                <p><span className="text-[var(--text-primary)]">Role:</span> {account.role}</p>
+                <p className="admin-wrap">
+                  <span className="text-[var(--text-primary)]">Organization:</span> {account.organization.name}
+                </p>
+                <p className="admin-wrap">
+                  <span className="text-[var(--text-primary)]">Owner:</span> {account.user.full_name}
+                </p>
+                <p className="admin-wrap">
+                  <span className="text-[var(--text-primary)]">Email:</span> {account.user.email}
+                </p>
+                <p className="admin-wrap">
+                  <span className="text-[var(--text-primary)]">Role:</span> {account.role}
+                </p>
               </div>
             ) : (
               <p className="mt-4 text-sm text-[var(--text-secondary)]">Loading account details...</p>
             )}
           </div>
 
-          <form onSubmit={handleBranding} className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
+          <form
+            onSubmit={handleBranding}
+            className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5"
+          >
             <p className="admin-eyebrow">Brand</p>
-            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Global identity</h2>
+            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">
+              Global identity
+            </h2>
             <div className="mt-5 grid gap-4">
               <div>
                 <label className="mb-2 block text-sm text-[var(--text-primary)]">Organization name</label>
-                <input className="input" value={branding.company_name} onChange={(event) => setBranding({ ...branding, company_name: event.target.value })} />
+                <input
+                  className="input"
+                  value={branding.company_name}
+                  onChange={(event) => setBranding({ ...branding, company_name: event.target.value })}
+                />
               </div>
               <div>
                 <label className="mb-2 block text-sm text-[var(--text-primary)]">Logo URL</label>
-                <input className="input" value={branding.logo_url} onChange={(event) => setBranding({ ...branding, logo_url: event.target.value })} />
+                <input
+                  className="input"
+                  value={branding.logo_url}
+                  onChange={(event) => setBranding({ ...branding, logo_url: event.target.value })}
+                />
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm text-[var(--text-primary)]">Primary color</label>
-                  <input className="input" value={branding.primary_color} onChange={(event) => setBranding({ ...branding, primary_color: event.target.value })} />
+                  <input
+                    className="input"
+                    value={branding.primary_color}
+                    onChange={(event) => setBranding({ ...branding, primary_color: event.target.value })}
+                  />
                 </div>
                 <div>
                   <label className="mb-2 block text-sm text-[var(--text-primary)]">Accent color</label>
-                  <input className="input" value={branding.accent_color} onChange={(event) => setBranding({ ...branding, accent_color: event.target.value })} />
+                  <input
+                    className="input"
+                    value={branding.accent_color}
+                    onChange={(event) => setBranding({ ...branding, accent_color: event.target.value })}
+                  />
                 </div>
               </div>
             </div>
@@ -129,19 +165,40 @@ export default function AdminSettingsPage() {
         <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
           <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
             <p className="admin-eyebrow">API</p>
-            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Provider keys</h2>
+            <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">
+              Provider keys
+            </h2>
             <form onSubmit={handleApiKey} className="mt-5 grid gap-4">
               <div className="grid gap-4 md:grid-cols-2">
-                <select className="input" value={apiKeyForm.provider} onChange={(event) => setApiKeyForm({ ...apiKeyForm, provider: event.target.value })}>
+                <select
+                  className="input"
+                  value={apiKeyForm.provider}
+                  onChange={(event) => setApiKeyForm({ ...apiKeyForm, provider: event.target.value })}
+                >
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="openrouter">OpenRouter</option>
                   <option value="livekit">LiveKit</option>
                 </select>
-                <input className="input" placeholder="Label" value={apiKeyForm.label} onChange={(event) => setApiKeyForm({ ...apiKeyForm, label: event.target.value })} />
+                <input
+                  className="input"
+                  placeholder="Label"
+                  value={apiKeyForm.label}
+                  onChange={(event) => setApiKeyForm({ ...apiKeyForm, label: event.target.value })}
+                />
               </div>
-              <input className="input" placeholder="Product override workspace id (optional)" value={apiKeyForm.workspace_id} onChange={(event) => setApiKeyForm({ ...apiKeyForm, workspace_id: event.target.value })} />
-              <input className="input" placeholder="Secret key" value={apiKeyForm.api_key} onChange={(event) => setApiKeyForm({ ...apiKeyForm, api_key: event.target.value })} />
+              <input
+                className="input"
+                placeholder="Product override workspace id (optional)"
+                value={apiKeyForm.workspace_id}
+                onChange={(event) => setApiKeyForm({ ...apiKeyForm, workspace_id: event.target.value })}
+              />
+              <input
+                className="input"
+                placeholder="Secret key"
+                value={apiKeyForm.api_key}
+                onChange={(event) => setApiKeyForm({ ...apiKeyForm, api_key: event.target.value })}
+              />
               <div className="flex justify-end">
                 <button type="submit" className="btn-primary" disabled={saving === "api"}>
                   {saving === "api" ? "Saving..." : "Save key"}
@@ -150,9 +207,12 @@ export default function AdminSettingsPage() {
             </form>
             <div className="mt-5 space-y-3">
               {apiKeys.map((key) => (
-                <div key={key.id} className="rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--text-secondary)]">
-                  <p className="text-[var(--text-primary)]">{key.provider} · {key.label}</p>
-                  <p className="mt-1">{key.masked_key}</p>
+                <div
+                  key={key.id}
+                  className="rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--text-secondary)]"
+                >
+                  <p className="admin-wrap text-[var(--text-primary)]">{`${key.provider} / ${key.label}`}</p>
+                  <p className="admin-wrap mt-1">{key.masked_key}</p>
                 </div>
               ))}
             </div>
@@ -161,13 +221,17 @@ export default function AdminSettingsPage() {
           <div className="space-y-4">
             <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
               <p className="admin-eyebrow">Billing</p>
-              <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Plan snapshot</h2>
+              <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">
+                Plan snapshot
+              </h2>
               {billing ? (
                 <div className="mt-5 space-y-3 text-sm text-[var(--text-secondary)]">
-                  <p><span className="text-[var(--text-primary)]">Plan:</span> {billing.plan}</p>
-                  <p><span className="text-[var(--text-primary)]">Status:</span> {billing.status}</p>
-                  <p><span className="text-[var(--text-primary)]">Billing email:</span> {billing.billing_email || "Not set"}</p>
-                  <p><span className="text-[var(--text-primary)]">Seats:</span> {billing.seats}</p>
+                  <p className="admin-wrap"><span className="text-[var(--text-primary)]">Plan:</span> {billing.plan}</p>
+                  <p className="admin-wrap"><span className="text-[var(--text-primary)]">Status:</span> {billing.status}</p>
+                  <p className="admin-wrap">
+                    <span className="text-[var(--text-primary)]">Billing email:</span> {billing.billing_email || "Not set"}
+                  </p>
+                  <p className="admin-wrap"><span className="text-[var(--text-primary)]">Seats:</span> {billing.seats}</p>
                 </div>
               ) : (
                 <p className="mt-4 text-sm text-[var(--text-secondary)]">Billing is not configured for this environment.</p>
@@ -176,9 +240,12 @@ export default function AdminSettingsPage() {
 
             <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
               <p className="admin-eyebrow">Danger zone</p>
-              <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Destructive actions</h2>
+              <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">
+                Destructive actions
+              </h2>
               <p className="mt-4 text-sm leading-7 text-[var(--text-secondary)]">
-                Account deletion is intentionally not exposed in this POC. Remove products individually from the backend only after exporting any session data you want to keep.
+                Account deletion is intentionally not exposed in this POC. Remove products individually from the backend
+                only after exporting any session data you want to keep.
               </p>
             </div>
           </div>

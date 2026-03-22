@@ -202,7 +202,7 @@ export interface AdminProduct extends Workspace {
   recording_enabled: boolean;
   citation_mode: string;
   navigation_style: string;
-  demo_link: string;
+  demo_link?: string;
   live_link: string;
   embed_code: string;
   share_title: string;
@@ -273,11 +273,23 @@ export interface ProductSessionSettings {
 }
 
 export interface ProductShareSettings {
-  demo_link: string;
+  demo_link?: string;
   live_link: string;
   embed_code: string;
   share_title: string;
   share_description: string;
+}
+
+export interface EmbedShareEntry extends ProductShareSettings {
+  product_id: string;
+  product_name: string;
+}
+
+export interface BrandingSettings {
+  company_name: string;
+  logo_url: string;
+  primary_color: string;
+  accent_color: string;
 }
 
 export interface SessionRecording {

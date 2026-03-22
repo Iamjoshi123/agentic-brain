@@ -13,23 +13,23 @@ from typing import Awaitable, Callable, Optional
 
 from sqlmodel import Session, select
 
-from app.browser.executor import (
+from app.agent.browser import (
     close_browser_session,
     execute_action,
     execute_recipe_step,
     get_active_driver,
     start_browser_session,
 )
+from app.agent.events import event_broker
+from app.agent.planning import plan_response
 from app.config import settings
 from app.database import engine
-from app.live.events import event_broker
 from app.live.media import MediaPublisher, create_media_publisher
 from app.live.room import LiveKitParticipantContract, create_livekit_participant
 from app.models.recipe import DemoRecipe
 from app.models.admin import ProductConfig
 from app.models.session import DemoSession, SessionMessage
 from app.models.workspace import Workspace
-from app.services.planner import plan_response
 from app.v2.language import build_greeting_text, meeting_language
 from app.v2.models import MeetingSessionV2
 
@@ -484,7 +484,7 @@ class LiveDemoRuntime:
 
                 if self._meeting_id:
                     from app.v2.models import MeetingSessionV2
-                    from app.v2.orchestrator import MeetingOrchestrator
+                    from app.agent.orchestration import MeetingOrchestrator
 
                     meeting = db.get(MeetingSessionV2, self._meeting_id)
                     if meeting is not None:

@@ -71,6 +71,12 @@ It creates a meeting record, personalizes the demo, boots the live runtime, and 
 
 ## Folder Map
 
+The simplest way to think about the backend now is:
+
+- `app/api`: the server surface
+- `app/agent`: the smart demo layer
+- everything else: the current implementation behind those boundaries
+
 ### `backend/app/api`
 
 HTTP route handlers for:
@@ -79,6 +85,23 @@ HTTP route handlers for:
 - admin auth and admin console data
 - sessions and live controls
 - analytics and retrieval
+
+This should be the stable entrypoint the frontend talks to.
+
+### `backend/app/agent`
+
+Phase-1 agent boundary:
+
+- `browser.py`: agent-facing browser actions
+- `events.py`: runtime event stream
+- `orchestration.py`: meeting/demo orchestration
+- `pipeline.py`: turn pipeline
+- `planning.py`: answer/demo planning
+- `runtime.py`: live runtime registry
+- `types.py`: shared turn data
+- `voice.py`: voice entrypoint
+
+Today these files mainly re-export the current implementation. That is intentional: it creates one clean home for agent code before a later deeper refactor.
 
 ### `backend/app/models`
 

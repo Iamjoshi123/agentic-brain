@@ -66,14 +66,12 @@ def ensure_share_settings(db: Session, workspace: Workspace) -> ProductShareSett
 
 def share_payload(workspace: Workspace, share: ProductShareSettings) -> dict[str, str]:
     frontend = settings.frontend_url.rstrip("/")
-    demo_link = f"{frontend}/demo/{workspace.public_token}"
     live_link = f"{frontend}/meet/{workspace.public_token}"
     embed_code = (
-        f'<iframe src="{demo_link}" title="{share.share_title}" '
+        f'<iframe src="{live_link}" title="{share.share_title}" '
         'style="width:100%;min-height:720px;border:0;border-radius:24px;" allow="microphone; autoplay"></iframe>'
     )
     return {
-        "demo_link": demo_link,
         "live_link": live_link,
         "embed_code": embed_code,
         "share_title": share.share_title,

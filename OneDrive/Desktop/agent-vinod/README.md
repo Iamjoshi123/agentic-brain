@@ -114,6 +114,27 @@ make docker-down  # Stop Docker Compose
 
 ## Project Structure
 
+The repo is moving toward this simpler shape:
+
+```text
+frontend/
+  src/
+    app/               # User/admin pages
+    components/        # UI building blocks
+    lib/               # API client helpers
+backend/
+  app/
+    api/               # Main server API
+    agent/             # Smart demo/automation layer
+    models/            # Database models
+    services/          # Shared backend services
+stagehand-bridge/      # Separate Node browser bridge
+infra/                 # Docker and local infra
+fixtures/              # Demo seed data
+```
+
+Use that as the mental model. The legacy folders shown below still exist during this transition.
+
 ```
 ├── backend/
 │   ├── app/

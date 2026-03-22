@@ -36,13 +36,13 @@ The seed script creates:
 - allowed domains: `my.saleshandy.com`
 
 Open:
-- buyer demo: `http://localhost:3000/demo/demo-saleshandy-001`
+- buyer meeting: `http://localhost:3000/meet/demo-saleshandy-001`
 - admin workspace: `http://localhost:3000/admin`
 
 ## Live demo flow
 
-1. Click `Start Demo`.
-2. Click `Start Live Demo`.
+1. Open the meeting page.
+2. Let the meeting bootstrap and attach the live stage.
 3. Wait for the browser view to connect.
 4. Ask:
    - `Show me the sequence dashboard`

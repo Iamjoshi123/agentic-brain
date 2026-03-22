@@ -169,7 +169,7 @@ function ProductsIndexPage({ initialTitle = "Products" }: { initialTitle?: strin
         </div>
       ) : (
         <section className="overflow-hidden rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)]">
-          <div className="hidden grid-cols-[minmax(0,1.5fr)_minmax(160px,0.8fr)_120px_120px_160px] gap-4 px-5 py-3 text-xs uppercase tracking-[0.18em] text-[var(--text-tertiary)] md:grid">
+          <div className="hidden grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)_108px_108px_132px] gap-4 px-5 py-3 text-xs uppercase tracking-[0.18em] text-[var(--text-tertiary)] md:grid">
             <span>Product</span>
             <span>URL</span>
             <span>State</span>
@@ -182,18 +182,26 @@ function ProductsIndexPage({ initialTitle = "Products" }: { initialTitle?: strin
               href={`/admin/products/${product.id}`}
               className="admin-table-row block px-5 py-4"
             >
-              <div className="grid gap-3 md:grid-cols-[minmax(0,1.5fr)_minmax(160px,0.8fr)_120px_120px_160px] md:items-center md:gap-4">
-                <div>
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.45fr)_minmax(0,0.9fr)_108px_108px_132px] md:items-start md:gap-4">
+                <div className="min-w-0">
                   <div className="flex items-center gap-3">
                     <span className="h-2.5 w-2.5 rounded-full bg-[var(--accent-primary)]" />
-                    <p className="text-[1.05rem] text-[var(--text-primary)]">{product.name}</p>
+                    <p className="admin-truncate text-[1.05rem] text-[var(--text-primary)]" title={product.name}>
+                      {product.name}
+                    </p>
                   </div>
                   {product.description ? (
-                    <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{product.description}</p>
+                    <p className="admin-wrap mt-2 text-sm leading-6 text-[var(--text-secondary)]" title={product.description}>
+                      {product.description}
+                    </p>
                   ) : null}
                 </div>
-                <div className="text-sm text-[var(--text-secondary)]">{product.product_url || "Not set yet"}</div>
-                <div>
+                <div className="min-w-0 text-sm text-[var(--text-secondary)]">
+                  <span className="admin-wrap" title={product.product_url || "Not set yet"}>
+                    {product.product_url || "Not set yet"}
+                  </span>
+                </div>
+                <div className="min-w-0">
                   <span className="badge">{productState(product)}</span>
                 </div>
                 <div className="text-sm text-[var(--text-primary)]">{product.session_count || 0}</div>

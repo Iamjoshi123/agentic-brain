@@ -56,7 +56,7 @@ npm run dev
 ## URLs
 
 - Admin: `http://127.0.0.1:3000/admin`
-- Demo: `http://127.0.0.1:3000/demo/demo-acme-crm-001`
+- Meeting: `http://127.0.0.1:3000/meet/demo-acme-crm-001`
 - API Docs: `http://127.0.0.1:8000/docs`
 
 ## Manual Acceptance Flow
@@ -72,7 +72,7 @@ Open the seeded workspace and confirm:
 
 ### 2. Buyer grounded answer
 
-Open the public demo link and start a session.
+Open the public meeting link and let the meeting initialize.
 
 Ask:
 
@@ -86,7 +86,7 @@ Expected result:
 
 ### 3. Buyer live demo
 
-Click `Start Live Demo`.
+Wait for the live meeting stage to connect.
 
 Ask:
 

@@ -339,11 +339,11 @@ export default function AdminProductDetailPage() {
   return (
     <AdminShell
       title={product.name}
-      description="Configure the product, ground the agent in knowledge, and shape the prospect experience from one place."
-      actions={(
-        <>
-          <a href={product.demo_link} target="_blank" rel="noreferrer" className="btn-secondary">
-            Open demo
+        description="Configure the product, ground the agent in knowledge, and shape the prospect experience from one place."
+        actions={(
+          <>
+          <a href={product.live_link} target="_blank" rel="noreferrer" className="btn-secondary">
+            Open meeting
           </a>
           <Link href="/admin/products" className="btn-secondary">
             Back to products
@@ -445,11 +445,11 @@ export default function AdminProductDetailPage() {
           <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="admin-eyebrow">Demo connection</p>
+                <p className="admin-eyebrow">Meeting connection</p>
                 <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">How the agent enters the product</h2>
               </div>
-              <a href={product.demo_link} target="_blank" rel="noreferrer" className="btn-secondary">
-                Test preview
+              <a href={product.live_link} target="_blank" rel="noreferrer" className="btn-secondary">
+                Test meeting
               </a>
             </div>
             <div className="mt-5 grid gap-4 lg:grid-cols-2">
@@ -516,9 +516,14 @@ export default function AdminProductDetailPage() {
             <div className="space-y-4">
               <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
+                  <div className="min-w-0">
                     <p className="admin-eyebrow">Content</p>
-                    <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">{selectedKnowledge?.title || "Knowledge detail"}</h2>
+                    <h2
+                      className="admin-wrap mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]"
+                      title={selectedKnowledge?.title || "Knowledge detail"}
+                    >
+                      {selectedKnowledge?.title || "Knowledge detail"}
+                    </h2>
                   </div>
                   <div className="flex flex-wrap gap-2">
                     {([
@@ -588,8 +593,8 @@ export default function AdminProductDetailPage() {
                         <p className="mt-2 text-sm text-[var(--text-primary)]">{selectedKnowledge.status}</p>
                       </div>
                     </div>
-                    {selectedKnowledge.source_url ? <div><p className="admin-eyebrow">URL</p><p className="mt-2 break-all text-sm text-[var(--text-secondary)]">{selectedKnowledge.source_url}</p></div> : null}
-                    {selectedKnowledge.file_name ? <div><p className="admin-eyebrow">File</p><p className="mt-2 text-sm text-[var(--text-secondary)]">{selectedKnowledge.file_name}</p></div> : null}
+                    {selectedKnowledge.source_url ? <div><p className="admin-eyebrow">URL</p><p className="admin-wrap mt-2 text-sm text-[var(--text-secondary)]">{selectedKnowledge.source_url}</p></div> : null}
+                    {selectedKnowledge.file_name ? <div><p className="admin-eyebrow">File</p><p className="admin-wrap mt-2 text-sm text-[var(--text-secondary)]">{selectedKnowledge.file_name}</p></div> : null}
                     <div>
                       <p className="admin-eyebrow">Jobs</p>
                       <div className="mt-3 space-y-2">
@@ -617,11 +622,11 @@ export default function AdminProductDetailPage() {
                   <div className="mt-5 space-y-3">
                     <div className="rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3">
                       <p className="admin-eyebrow">Decision</p>
-                      <p className="mt-2 text-sm text-[var(--text-primary)]">{testResult.decision}</p>
+                      <p className="admin-wrap mt-2 text-sm text-[var(--text-primary)]">{testResult.decision}</p>
                     </div>
                     <div className="rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3">
                       <p className="admin-eyebrow">Response</p>
-                      <p className="mt-2 text-sm leading-6 text-[var(--text-primary)]">{testResult.response_text}</p>
+                      <p className="admin-wrap mt-2 text-sm leading-6 text-[var(--text-primary)]">{testResult.response_text}</p>
                     </div>
                     <div className="rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3">
                       <p className="admin-eyebrow">Citations</p>
@@ -853,8 +858,7 @@ export default function AdminProductDetailPage() {
                 <span className="badge">{product.is_active ? "Live" : "Paused"}</span>
               </div>
               <div className="mt-5 space-y-4">
-                <div><label className="mb-2 block text-sm text-[var(--text-primary)]">Demo link</label><code className="admin-code">{share.demo_link}</code></div>
-                <div><label className="mb-2 block text-sm text-[var(--text-primary)]">Live meeting link</label><code className="admin-code">{share.live_link}</code></div>
+                <div><label className="mb-2 block text-sm text-[var(--text-primary)]">Meeting link</label><code className="admin-code">{share.live_link}</code></div>
                 <div><label className="mb-2 block text-sm text-[var(--text-primary)]">Embed code</label><textarea className="textarea font-mono text-sm" rows={4} value={share.embed_code} readOnly /></div>
               </div>
             </div>
@@ -862,8 +866,8 @@ export default function AdminProductDetailPage() {
             <div className="rounded-[24px] border border-[var(--border-subtle)] bg-[rgba(255,255,255,0.92)] px-5 py-5">
               <p className="admin-eyebrow">Appearance</p>
               <div className="mt-4 rounded-[20px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-4">
-                <p className="text-sm text-[var(--text-primary)]">{share.share_title || product.name}</p>
-                <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)]">{share.share_description || "A clean prospect-facing entry point for this product demo."}</p>
+                <p className="admin-wrap text-sm text-[var(--text-primary)]">{share.share_title || product.name}</p>
+                <p className="admin-wrap mt-2 text-sm leading-6 text-[var(--text-secondary)]">{share.share_description || "A clean prospect-facing entry point for this product demo."}</p>
               </div>
               <p className="mt-4 text-sm leading-6 text-[var(--text-secondary)]">Global brand settings live in Settings. This product surface controls the wording prospects see before and after the demo.</p>
             </div>
@@ -875,9 +879,9 @@ export default function AdminProductDetailPage() {
               <h2 className="mt-2 text-[1.45rem] font-medium tracking-[-0.04em] text-[var(--text-primary)]">Prospect prompts</h2>
               <div className="mt-4 space-y-3">
                 {starterQuestions.map((question, index) => (
-                  <div key={`${question}-${index}`} className="flex items-center justify-between gap-3 rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3">
-                    <p className="text-sm text-[var(--text-primary)]">{question}</p>
-                    <button type="button" onClick={() => setQuestions(starterQuestions.filter((_, itemIndex) => itemIndex !== index))} className="text-sm text-[var(--text-secondary)]">Remove</button>
+                  <div key={`${question}-${index}`} className="flex items-start justify-between gap-3 rounded-[18px] border border-[var(--border-subtle)] bg-[var(--surface-muted)] px-4 py-3">
+                    <p className="admin-wrap min-w-0 text-sm text-[var(--text-primary)]">{question}</p>
+                    <button type="button" onClick={() => setQuestions(starterQuestions.filter((_, itemIndex) => itemIndex !== index))} className="shrink-0 text-sm text-[var(--text-secondary)]">Remove</button>
                   </div>
                 ))}
               </div>

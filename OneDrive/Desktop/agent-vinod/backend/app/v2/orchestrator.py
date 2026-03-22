@@ -10,10 +10,10 @@ from typing import Optional
 
 from sqlmodel import Session
 
+from app.agent.pipeline import DemoTurnPipeline
+from app.agent.types import ObservationSnapshot, TurnPipelineResult
 from app.models.recipe import DemoRecipe
 from app.models.workspace import Workspace
-from app.runtime_v3.pipeline import DemoTurnPipeline
-from app.runtime_v3.types import ObservationSnapshot, TurnPipelineResult
 from app.services.llm import generate
 from app.v2.language import language_name, meeting_language
 from app.v2.models import MeetingSessionV2

@@ -34,9 +34,9 @@ describe("AdminProductsPage", () => {
       .mockResolvedValueOnce([
         {
           id: "ws-1",
-          name: "Acme CRM",
-          description: "Sales workspace",
-          product_url: "https://app.example.com",
+          name: "Acme CRM With A Much Longer Product Name Than Usual",
+          description: "Sales workspace with an intentionally long description to verify wrapping stays inside the row.",
+          product_url: "https://app.example.com/really/long/path/that/should/not/overflow/the/admin/products/table",
           allowed_domains: "app.example.com",
           browser_auth_mode: "credentials",
           public_token: "demo-acme-crm-001",
@@ -50,9 +50,25 @@ describe("AdminProductsPage", () => {
       .mockResolvedValueOnce([
         {
           id: "ws-1",
-          name: "Acme CRM",
-          description: "Sales workspace",
-          product_url: "https://app.example.com",
+          name: "Acme CRM With A Much Longer Product Name Than Usual",
+          description: "Sales workspace with an intentionally long description to verify wrapping stays inside the row.",
+          product_url: "https://app.example.com/really/long/path/that/should/not/overflow/the/admin/products/table",
+          allowed_domains: "app.example.com",
+          browser_auth_mode: "credentials",
+          public_token: "demo-acme-crm-001",
+          is_active: false,
+          knowledge_count: 4,
+          session_count: 7,
+          created_at: "2026-03-17T00:00:00.000Z",
+          updated_at: "2026-03-17T00:00:00.000Z",
+        },
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "ws-1",
+          name: "Acme CRM With A Much Longer Product Name Than Usual",
+          description: "Sales workspace with an intentionally long description to verify wrapping stays inside the row.",
+          product_url: "https://app.example.com/really/long/path/that/should/not/overflow/the/admin/products/table",
           allowed_domains: "app.example.com",
           browser_auth_mode: "credentials",
           public_token: "demo-acme-crm-001",
@@ -83,8 +99,17 @@ describe("AdminProductsPage", () => {
   it("lists products as rows instead of cards", async () => {
     render(<AdminProductsPage />);
 
-    expect(await screen.findByText("Acme CRM")).toBeInTheDocument();
-    expect(screen.getByText("https://app.example.com")).toBeInTheDocument();
+    await screen.findAllByText("Acme CRM With A Much Longer Product Name Than Usual");
+    const productName = screen
+      .getAllByTitle("Acme CRM With A Much Longer Product Name Than Usual")
+      .find((element) => element.tagName === "P");
+    const productUrl = screen
+      .getAllByTitle("https://app.example.com/really/long/path/that/should/not/overflow/the/admin/products/table")
+      .find((element) => element.tagName === "SPAN");
+
+    expect(productName).toBeTruthy();
+    expect(productName).toHaveAttribute("title", "Acme CRM With A Much Longer Product Name Than Usual");
+    expect(productUrl).toHaveAttribute("title", "https://app.example.com/really/long/path/that/should/not/overflow/the/admin/products/table");
     expect(screen.getByText("Ready")).toBeInTheDocument();
   });
 
@@ -108,7 +133,7 @@ describe("AdminProductsPage", () => {
       });
     });
     await waitFor(() => {
-      expect(adminApiMock.listProducts).toHaveBeenCalledTimes(2);
+      expect(adminApiMock.listProducts).toHaveBeenCalledTimes(3);
     });
   });
 });
